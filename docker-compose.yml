@@ -1,0 +1,96 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: meli-orders-postgres
+    environment:
+      POSTGRES_DB: orders_db
+      POSTGRES_USER: orders
+      POSTGRES_PASSWORD: orders
+    # DEMO WAL (Bloco 2): habilita WAL no nível de replicação e cria o usuário
+    # de replicação usado pela réplica. Sem wal_level=replica, pg_stat_replication
+    # não exibe nenhuma linha e o demo de lag_bytes não funciona.
+    command: >
+      postgres
+        -c wal_level=replica
+        -c max_wal_senders=3
+        -c wal_keep_size=64
+        -c synchronous_commit=off
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-replication.sql:/docker-entrypoint-initdb.d/init-replication.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orders -d orders_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # DEMO WAL (Bloco 2): réplica de streaming do primário.
+  # Ativa apenas com: docker compose --profile wal-demo up
+  # Após subir, use no primário:
+  #   SELECT client_addr, pg_wal_lsn_diff(sent_lsn, replay_lsn) AS lag_bytes
+  #   FROM pg_stat_replication;
+  # Para simular falha: docker stop meli-orders-postgres-replica
+  postgres-replica:
+    image: postgres:16-alpine
+    container_name: meli-orders-postgres-replica
+    environment:
+      PGUSER: replicator
+      PGPASSWORD: replicator
+    command: |
+      bash -c "
+        until pg_basebackup -h postgres -D /var/lib/postgresql/data \
+          -U replicator -Fp -Xs -P -R 2>/dev/null; do
+          echo 'Aguardando primary...' && sleep 3
+        done && postgres
+      "
+    depends_on:
+      - postgres
+    ports:
+      - "5433:5432"
+    profiles:
+      - wal-demo
+
+  mongodb:
+    image: mongo:7
+    container_name: meli-orders-mongodb
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: elasticsearch:8.13.0
+    container_name: meli-orders-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: meli-orders-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+
