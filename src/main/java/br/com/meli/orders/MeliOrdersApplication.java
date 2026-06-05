@@ -5,9 +5,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.elasticsearch.repository.config.EnableElasticsearchRepositories;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableJpaRepositories(basePackages = "br.com.meli.orders.infrastructure.jpa")
+@EnableScheduling
+@EnableJpaRepositories(basePackages = {
+        "br.com.meli.orders.infrastructure.jpa",
+        "br.com.meli.orders.infrastructure.outbox"
+})
 @EnableMongoRepositories(basePackages = "br.com.meli.orders.infrastructure.mongo")
 @EnableElasticsearchRepositories(basePackages = "br.com.meli.orders.infrastructure.search")
 public class MeliOrdersApplication {
@@ -16,4 +21,3 @@ public class MeliOrdersApplication {
         SpringApplication.run(MeliOrdersApplication.class, args);
     }
 }
-
