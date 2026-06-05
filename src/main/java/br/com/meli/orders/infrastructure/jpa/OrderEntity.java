@@ -16,10 +16,12 @@ import java.util.stream.Collectors;
 public class OrderEntity {
 
     @Id
-    // PROBLEMA: IDENTITY força o Hibernate a buscar o ID gerado após cada INSERT,
-    // emitindo um round-trip por insert. Isso quebra o batch insert —
-    // 500 inserts resultam em 500 round-trips ao banco.
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    // SOLUCAO (Bloco 2 — batch insert): SEQUENCE com allocationSize pre-aloca
+    // blocos de IDs na memoria da aplicacao. O Hibernate nao precisa de round-trip
+    // ao banco para obter o ID apos cada INSERT — ele ja tem os proximos 50 IDs reservados.
+    // Combinado com hibernate.jdbc.batch_size=50, reduz 500 round-trips para ~10.
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "order_seq")
+    @SequenceGenerator(name = "order_seq", sequenceName = "orders_id_seq", allocationSize = 50)
     private Long id;
 
     @Column(name = "customer_id", nullable = false)
@@ -94,6 +96,9 @@ public class OrderEntity {
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 
     public List<OrderItemEntity> getItems() { return items; }
     public void setItems(List<OrderItemEntity> items) { this.items = items; }
