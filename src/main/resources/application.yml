@@ -6,17 +6,25 @@ spring:
     url: jdbc:postgresql://localhost:5432/orders_db
     username: orders
     password: orders
-    # PROBLEMA: sem configuração de HikariCP, o pool usa os defaults do Spring Boot
-    # (maximum-pool-size = 10, connection-timeout = 30s).
-    # Sob carga de 500 req/s, o pool se esgota silenciosamente.
-    # Requisições ficam na fila até o timeout sem nenhum sinal claro ao cliente.
+    hikari:
+      # SOLUCAO (Bloco 1 — backpressure no banco): limitar o pool forca a aplicacao
+      # a sinalizar ao cliente (via timeout) quando o banco esta sob pressao.
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 3000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   jpa:
     hibernate:
       ddl-auto: validate
-    # PROBLEMA: sem log de SQL habilitado, é impossível ver quantas queries
-    # o Hibernate está gerando por requisição. O problema N+1 passa invisível.
-    show-sql: false
+    # SOLUCAO (Bloco 1 — observabilidade): habilitar log torna visivel
+    # quantas queries o Hibernate gera por requisicao.
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        generate_statistics: true
 
   data:
     mongodb:

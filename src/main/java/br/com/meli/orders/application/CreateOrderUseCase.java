@@ -9,6 +9,7 @@ import br.com.meli.orders.domain.Order;
 import br.com.meli.orders.domain.OrderItem;
 import br.com.meli.orders.domain.exceptions.OutOfStockException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -28,10 +29,11 @@ public class CreateOrderUseCase {
         this.orderIndexPort = orderIndexPort;
     }
 
-    // PROBLEMA: sem @Transactional, o pedido e o decremento de inventário
-    // são operações independentes. Se o decremento falhar após o pedido ser gravado,
-    // o banco fica em estado inconsistente: pedido existe, estoque não foi decrementado.
-    // Em produção isso gera overselling silencioso.
+    // SOLUÇÃO (Bloco 1 — ACID): @Transactional envolve todo o método em uma única
+    // transação do banco de dados. Se qualquer operação falhar, o banco reverte
+    // automaticamente todas as mudanças já feitas (ROLLBACK).
+    // Pedido e decremento de inventário ocorrem juntos ou não ocorrem — nunca metade.
+    @Transactional
     public Order execute(CreateOrderRequest request) {
         List<OrderItem> items = request.items().stream()
                 .map(i -> new OrderItem(
@@ -46,11 +48,9 @@ public class CreateOrderUseCase {
         Order order = Order.create(request.customerId(), items);
         Order saved = orderRepository.save(order); // PostgreSQL — confirmado
 
-        // se qualquer linha abaixo lançar exceção, o pedido acima já está confirmado no banco
+        // agora, se qualquer linha abaixo falhar, o pedido acima também é revertido
         for (CreateOrderRequest.Item item : request.items()) {
-            // PROBLEMA: leitura e escrita sem proteção de concorrência.
-            // race condition: outra thread pode passar pela verificação abaixo ao mesmo tempo,
-            // ler quantity = 1 e decrementar — overselling.
+            // PROBLEMA: leitura e escrita sem proteção de concorrência (resolvido no Bloco 2).
             InventoryItem inv = inventoryRepository.findByProductId(item.productId())
                     .orElseThrow(() -> new OutOfStockException(item.productId()));
 
@@ -69,3 +69,5 @@ public class CreateOrderUseCase {
         return saved;
     }
 }
+
+

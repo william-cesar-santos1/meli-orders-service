@@ -13,18 +13,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/orders")
 public class OrderController {
-
-    // PROBLEMA: o cache de idempotência vive apenas na memória desta instância.
-    // Com 3 pods em produção, cada pod tem seu próprio mapa.
-    // A mesma Idempotency-Key pode ser aceita em pods diferentes,
-    // processando a mesma operação múltiplas vezes.
-    private final Map<String, String> idempotencyCache = new ConcurrentHashMap<>();
 
     private final CreateOrderUseCase createOrderUseCase;
     private final PayOrderUseCase payOrderUseCase;
@@ -41,25 +33,12 @@ public class OrderController {
         this.listOrdersByCustomerUseCase = listOrdersByCustomerUseCase;
     }
 
+    // SOLUÇÃO: controlador sem qualquer logica de idempotencia —
+    // essa responsabilidade foi completamente delegada ao IdempotencyFilter com Redis.
     @PostMapping
-    public ResponseEntity<OrderResponse> create(
-            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
-            @RequestBody @Valid CreateOrderRequest request) {
-
-        if (idempotencyKey != null && idempotencyCache.containsKey(idempotencyKey)) {
-            return ResponseEntity.ok(
-                    OrderResponse.fromJson(idempotencyCache.get(idempotencyKey))
-            );
-        }
-
+    public ResponseEntity<OrderResponse> create(@RequestBody @Valid CreateOrderRequest request) {
         Order order = createOrderUseCase.execute(request);
-        OrderResponse response = OrderResponse.from(order);
-
-        if (idempotencyKey != null) {
-            idempotencyCache.put(idempotencyKey, response.toJson());
-        }
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(OrderResponse.from(order));
     }
 
     @GetMapping
