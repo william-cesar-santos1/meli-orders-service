@@ -18,11 +18,11 @@ public record OrderResponse(
 ) {
     public static OrderResponse from(Order order) {
         return new OrderResponse(
-                order.getId() != null ? order.getId().toString() : null,
-                order.getCustomerId(),
-                order.getStatus().name(),
-                order.getTotalAmount(),
-                order.getCreatedAt()
+                order.id() != null ? order.id().toString() : null,
+                order.customerId(),
+                order.status().name(),
+                order.totalAmount(),
+                order.createdAt()
         );
     }
 
@@ -46,4 +46,3 @@ public record OrderResponse(
         }
     }
 }
-

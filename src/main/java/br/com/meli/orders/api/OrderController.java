@@ -1,12 +1,12 @@
 package br.com.meli.orders.api;
 
 import br.com.meli.orders.application.CreateOrderUseCase;
+import br.com.meli.orders.application.ListOrdersByCustomerUseCase;
 import br.com.meli.orders.application.PayOrderUseCase;
 import br.com.meli.orders.application.SearchOrdersUseCase;
 import br.com.meli.orders.api.dto.CreateOrderRequest;
 import br.com.meli.orders.api.dto.OrderResponse;
 import br.com.meli.orders.domain.Order;
-import br.com.meli.orders.infrastructure.jpa.OrderRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,16 +29,16 @@ public class OrderController {
     private final CreateOrderUseCase createOrderUseCase;
     private final PayOrderUseCase payOrderUseCase;
     private final SearchOrdersUseCase searchOrdersUseCase;
-    private final OrderRepository orderRepository;
+    private final ListOrdersByCustomerUseCase listOrdersByCustomerUseCase;
 
     public OrderController(CreateOrderUseCase createOrderUseCase,
                            PayOrderUseCase payOrderUseCase,
                            SearchOrdersUseCase searchOrdersUseCase,
-                           OrderRepository orderRepository) {
+                           ListOrdersByCustomerUseCase listOrdersByCustomerUseCase) {
         this.createOrderUseCase = createOrderUseCase;
         this.payOrderUseCase = payOrderUseCase;
         this.searchOrdersUseCase = searchOrdersUseCase;
-        this.orderRepository = orderRepository;
+        this.listOrdersByCustomerUseCase = listOrdersByCustomerUseCase;
     }
 
     @PostMapping
@@ -64,28 +64,20 @@ public class OrderController {
 
     @GetMapping
     public List<OrderResponse> listByCustomer(@RequestParam String customerId) {
-        // PROBLEMA: findByCustomerId usa lazy loading — problema N+1
-        return orderRepository.findByCustomerId(customerId)
-                .stream()
-                .map(entity -> OrderResponse.from(entity.toDomain()))
+        return listOrdersByCustomerUseCase.execute(customerId).stream()
+                .map(OrderResponse::from)
                 .toList();
     }
 
     @PatchMapping("/{id}/pay")
     public ResponseEntity<OrderResponse> pay(@PathVariable Long id) {
-        Order order = payOrderUseCase.execute(id);
-        return ResponseEntity.ok(OrderResponse.from(order));
+        return ResponseEntity.ok(OrderResponse.from(payOrderUseCase.execute(id)));
     }
 
-    // PROBLEMA: LIKE '%q%' força full table scan no PostgreSQL.
-    // Sem índice de texto, cada busca percorre todos os registros da tabela.
-    // Com 1 milhão de pedidos, a busca degrada linearmente.
     @GetMapping("/search")
     public List<OrderResponse> search(@RequestParam String q) {
-        return searchOrdersUseCase.search(q)
-                .stream()
+        return searchOrdersUseCase.search(q).stream()
                 .map(OrderResponse::from)
                 .toList();
     }
 }
-

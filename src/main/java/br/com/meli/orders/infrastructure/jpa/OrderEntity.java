@@ -1,6 +1,7 @@
 package br.com.meli.orders.infrastructure.jpa;
 
 import br.com.meli.orders.domain.Order;
+import br.com.meli.orders.domain.OrderItem;
 import br.com.meli.orders.domain.OrderStatus;
 import jakarta.persistence.*;
 
@@ -8,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "orders")
@@ -43,21 +45,39 @@ public class OrderEntity {
 
     public static OrderEntity from(Order order) {
         OrderEntity entity = new OrderEntity();
-        entity.customerId = order.getCustomerId();
-        entity.status = order.getStatus().name();
-        entity.totalAmount = order.getTotalAmount();
-        entity.createdAt = order.getCreatedAt();
+        entity.customerId = order.customerId();
+        entity.status = order.status().name();
+        entity.totalAmount = order.totalAmount();
+        entity.createdAt = order.createdAt();
+
+        if (order.items() != null && !order.items().isEmpty()) {
+            List<OrderItemEntity> itemEntities = order.items().stream()
+                    .map(item -> {
+                        OrderItemEntity ie = new OrderItemEntity();
+                        ie.setOrder(entity);
+                        ie.setProductId(item.productId());
+                        ie.setProductName(item.productName() != null ? item.productName() : item.productId());
+                        ie.setQuantity(item.quantity());
+                        ie.setUnitPrice(item.unitPrice());
+                        return ie;
+                    })
+                    .collect(Collectors.toList());
+            entity.items = itemEntities;
+        }
         return entity;
     }
 
     public Order toDomain() {
-        Order order = new Order();
-        order.setId(this.id);
-        order.setCustomerId(this.customerId);
-        order.setStatus(OrderStatus.valueOf(this.status));
-        order.setTotalAmount(this.totalAmount);
-        order.setCreatedAt(this.createdAt);
-        return order;
+        List<OrderItem> domainItems = items.stream()
+                .map(ie -> new OrderItem(
+                        String.valueOf(ie.getId()),
+                        ie.getProductId(),
+                        ie.getQuantity(),
+                        ie.getUnitPrice(),
+                        ie.getProductName()
+                ))
+                .toList();
+        return new Order(id, customerId, domainItems, OrderStatus.valueOf(status), totalAmount, createdAt);
     }
 
     public Long getId() { return id; }
@@ -78,4 +98,3 @@ public class OrderEntity {
     public List<OrderItemEntity> getItems() { return items; }
     public void setItems(List<OrderItemEntity> items) { this.items = items; }
 }
-
