@@ -36,9 +36,11 @@ public class OrderEntity {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    // PROBLEMA: sem @Version, não há controle de versão otimista.
-    // Duas transações concorrentes que leem e modificam o mesmo pedido
-    // podem sobrescrever silenciosamente a mudança uma da outra (lost update).
+    // SOLUCAO (Bloco 2 — optimistic locking): @Version faz o Hibernate incluir
+    // a coluna version no WHERE do UPDATE. Se outra transação já alterou o registro,
+    // o UPDATE afeta 0 linhas e o Hibernate lança OptimisticLockException — sem lost update.
+    @Version
+    private Long version;
 
     @OneToMany(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<OrderItemEntity> items = new ArrayList<>();
