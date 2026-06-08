@@ -10,6 +10,10 @@ public interface InventoryRepositoryPort {
     // simultaneamente, cada uma vê quantity = 1 e decrementa — overselling silencioso.
     Optional<InventoryItem> findByProductId(String productId);
 
+    // SOLUCAO (Bloco 2 — pessimistic locking): SELECT FOR UPDATE garante que
+    // apenas uma transação por vez leia e decremente o estoque.
+    Optional<InventoryItem> findByProductIdWithLock(String productId);
+
     void save(InventoryItem item);
 }
 

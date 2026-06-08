@@ -24,6 +24,14 @@ public class InventoryJpaAdapter implements InventoryRepositoryPort {
     }
 
     @Override
+    // SOLUCAO (Bloco 2 — pessimistic locking): delega para SELECT FOR UPDATE,
+    // bloqueando o registro até o commit/rollback da transação corrente.
+    public Optional<InventoryItem> findByProductIdWithLock(String productId) {
+        return jpaRepository.findByProductIdWithLock(productId)
+                .map(e -> new InventoryItem(e.getProductId(), e.getName(), e.getQuantity()));
+    }
+
+    @Override
     public void save(InventoryItem item) {
         InventoryEntity entity = jpaRepository.findById(item.productId())
                 .orElseThrow(() -> new IllegalStateException("Inventory not found: " + item.productId()));
