@@ -1,12 +1,104 @@
 groups:
   - name: sla
     rules:
-      - alert: HighLatencyP95
-        # dispara se o p95 ficar acima de 300ms por mais de 2 minutos
-        expr: http_server_requests_seconds{quantile="0.95"} > 0.3
+
+      # ── p95 global: todas as requisições HTTP da API ────────────────────────
+      - alert: HighLatencyP95Global
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_requests_seconds_bucket{job="meli-orders"}[2m])) by (le)
+          ) > 0.3
         for: 2m
         labels:
           severity: warning
+          team: backend
         annotations:
-          summary: "p95 acima do budget de 300ms — investigar antes da próxima campanha"
+          summary: "p95 global > 300ms por 2 minutos"
+          description: >
+            O percentil 95 de todas as requisições está em
+            {{ $value | humanizeDuration }} — acima do budget de 300ms.
+            Verifique CPU, pool de conexões e GC no dashboard Sistema.
 
+      # ── p95 por endpoint: POST /orders (criação de pedidos) ─────────────────
+      - alert: HighLatencyP95CreateOrder
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_requests_seconds_bucket{job="meli-orders",uri="/orders",method="POST"}[2m])) by (le)
+          ) > 0.3
+        for: 2m
+        labels:
+          severity: critical
+          endpoint: "POST /orders"
+          team: backend
+        annotations:
+          summary: "p95 do POST /orders > 300ms por 2 minutos"
+          description: >
+            Criação de pedidos degradada: p95 = {{ $value | humanizeDuration }}.
+            Verificar: lock de inventário (SELECT FOR UPDATE), pool HikariCP,
+            OutboxJpaAdapter e tamanho do batch de inserts.
+
+      # ── p95 por endpoint: GET /orders (listagem) ────────────────────────────
+      - alert: HighLatencyP95ListOrders
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_requests_seconds_bucket{job="meli-orders",uri="/orders",method="GET"}[2m])) by (le)
+          ) > 0.2
+        for: 2m
+        labels:
+          severity: warning
+          endpoint: "GET /orders"
+          team: backend
+        annotations:
+          summary: "p95 do GET /orders > 200ms por 2 minutos"
+          description: >
+            Listagem de pedidos degradada: p95 = {{ $value | humanizeDuration }}.
+            Verificar: N+1 queries, JOIN FETCH e índice em customer_id.
+
+      # ── p95 por endpoint: GET /orders/search (busca Elasticsearch) ──────────
+      - alert: HighLatencyP95SearchOrders
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_requests_seconds_bucket{job="meli-orders",uri="/orders/search"}[2m])) by (le)
+          ) > 0.4
+        for: 2m
+        labels:
+          severity: warning
+          endpoint: "GET /orders/search"
+          team: backend
+        annotations:
+          summary: "p95 do GET /orders/search > 400ms por 2 minutos"
+          description: >
+            Busca full-text degradada: p95 = {{ $value | humanizeDuration }}.
+            Verificar: saúde do cluster Elasticsearch, tamanho do índice
+            e analyzer 'portuguese'.
+
+      # ── Taxa de erro > 1% ────────────────────────────────────────────────────
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job="meli-orders",status=~"5.."}[2m]))
+          /
+          sum(rate(http_server_requests_seconds_count{job="meli-orders"}[2m]))
+          > 0.01
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Taxa de erros 5xx > 1%"
+          description: >
+            {{ $value | humanizePercentage }} das requisições retornam 5xx.
+            Verifique logs da aplicação, conectividade com PostgreSQL e OutboxProcessor.
+
+      # ── Pool HikariCP esgotado ───────────────────────────────────────────────
+      - alert: HikariPoolExhausted
+        expr: |
+          hikaricp_connections_pending{job="meli-orders"} > 3
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Pool HikariCP com {{ $value }} conexões aguardando"
+          description: >
+            Conexões pendentes no pool indica saturação do banco.
+            Considere aumentar maximum-pool-size ou reduzir tempo de transação.
