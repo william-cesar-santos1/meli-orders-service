@@ -24,9 +24,9 @@ export const options = {
         criar_pedidos: {
             executor: 'ramping-vus',
             stages: [
-                { duration: '2m', target: 500 },  // ramp-up
-                { duration: '5m', target: 500 },  // plateau
-                { duration: '1m', target: 0   },  // ramp-down
+                { duration: '1m', target: 500 },  // ramp-up
+                { duration: '2m', target: 500 },  // plateau
+                { duration: '30s', target: 0   },  // ramp-down
             ],
             exec: 'criarPedido',
         },
@@ -36,9 +36,9 @@ export const options = {
             executor: 'ramping-vus',
             startTime: '30s',
             stages: [
+                { duration: '1m', target: 300 },
                 { duration: '2m', target: 300 },
-                { duration: '5m', target: 300 },
-                { duration: '1m', target: 0   },
+                { duration: '30s', target: 0   },
             ],
             exec: 'listarPedidos',
         },
@@ -48,9 +48,9 @@ export const options = {
             executor: 'ramping-vus',
             startTime: '30s',
             stages: [
+                { duration: '1m', target: 200 },
                 { duration: '2m', target: 200 },
-                { duration: '5m', target: 200 },
-                { duration: '1m', target: 0   },
+                { duration: '30s', target: 0   },
             ],
             exec: 'buscarPedidos',
         },
@@ -60,9 +60,9 @@ export const options = {
             executor: 'ramping-vus',
             startTime: '1m',   // aguarda criação de pedidos para ter IDs válidos
             stages: [
+                { duration: '1m', target: 100 },
                 { duration: '2m', target: 100 },
-                { duration: '4m', target: 100 },
-                { duration: '1m', target: 0   },
+                { duration: '30s', target: 0   },
             ],
             exec: 'pagarPedido',
         },
