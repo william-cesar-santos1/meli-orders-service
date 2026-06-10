@@ -18,6 +18,13 @@ public class InventoryEntity {
 
     public InventoryEntity() {}
 
+    /** Construtor de conveniência usado nos testes — usa productId como nome padrão. */
+    public InventoryEntity(String productId, int quantity) {
+        this.productId = productId;
+        this.name = productId;
+        this.quantity = quantity;
+    }
+
     public String getProductId() { return productId; }
     public void setProductId(String productId) { this.productId = productId; }
 

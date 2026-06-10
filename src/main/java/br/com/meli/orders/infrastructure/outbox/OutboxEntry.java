@@ -18,7 +18,9 @@ public class OutboxEntry {
     @Column(name = "event_type", nullable = false)
     private String eventType;
 
-    @Column
+    // columnDefinition omitido: em produção o tipo jsonb é definido pela migration Flyway.
+    // Sem columnDefinition, o Hibernate mapeia como TEXT — compatível com H2 nos testes.
+    @Column(nullable = false)
     private String payload;
 
     @Column(name = "created_at", nullable = false)
