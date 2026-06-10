@@ -1,12 +1,18 @@
 package br.com.meli.orders.application;
 
 import br.com.meli.orders.api.dto.CreateOrderRequest;
+import br.com.meli.orders.application.port.out.InventoryRepositoryPort;
+import br.com.meli.orders.application.port.out.OrderEventPort;
+import br.com.meli.orders.application.port.out.OrderRepositoryPort;
+import br.com.meli.orders.application.port.out.OutboxPort;
 import br.com.meli.orders.domain.exceptions.OutOfStockException;
 import br.com.meli.orders.infrastructure.jpa.InventoryEntity;
 import br.com.meli.orders.infrastructure.jpa.InventoryRepository;
+import br.com.meli.orders.infrastructure.search.OrderSearchRepository;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -41,6 +47,11 @@ class CreateOrderUseCaseIT {
 
     @Autowired private CreateOrderUseCase createOrderUseCase;
     @Autowired private InventoryRepository inventoryRepository;
+    // Elasticsearch não é necessário neste teste — mock evita ConnectionRefused ao subir contexto.
+    @MockBean
+    OrderSearchRepository orderSearchRepository;
+    @MockBean
+    OrderEventPort orderEventPort;
 
     @BeforeEach
     void seedInventory() {
