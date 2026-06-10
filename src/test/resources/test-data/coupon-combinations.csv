@@ -2,4 +2,8 @@ description,order_total,coupon_types,expected_total
 category discount 10%,100.00,CATEGORY:ELETRONICOS:0.10,90.00
 min value discount R$20,200.00,MIN_VALUE:150.00:20.00,180.00
 percentage 15%,100.00,PERCENTAGE:0.15,85.00
-
+category + percentage sem duplicar,100.00,CATEGORY:ELETRONICOS:0.10|PERCENTAGE:0.05,85.50
+min value + category segunda aplica sobre total reduzido,200.00,MIN_VALUE:150.00:20.00|CATEGORY:ELETRONICOS:0.10,162.00
+percentage + min value ordem importa,150.00,PERCENTAGE:0.10|MIN_VALUE:100.00:15.00,120.00
+three coupons combined,300.00,CATEGORY:ELETRONICOS:0.10|PERCENTAGE:0.05|MIN_VALUE:200.00:10.00,247.25
+no discount when below min value,80.00,MIN_VALUE:100.00:20.00,80.00
