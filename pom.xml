@@ -108,6 +108,14 @@
             <version>${gatling.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Bloco main: H2 em memória para plantar o problema do banco em memória nos testes.
+             Removido em feature/testcontainers-wiremock-5. -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

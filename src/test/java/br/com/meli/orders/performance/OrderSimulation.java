@@ -14,6 +14,10 @@ import static io.gatling.javaapi.http.HttpDsl.*;
  *
  * Três cenários que exercitam exatamente os gargalos trabalhados em cada bloco:
  *
+ * // PROBLEMA: sem assertions o Gatling sempre termina com sucesso independente da latência.
+ * // Degradação de performance não quebra o build — qualquer p95 é aceito no CI.
+ * // Performance fica invisível até o incidente em produção.
+ *
  *   createOrders   — POST /orders: mede o impacto do @Transactional (Bloco 1),
  *                    do batch insert + SEQUENCE (Bloco 2) e do Outbox (Bloco 3).
  *
