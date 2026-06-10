@@ -18,22 +18,19 @@ public class ApplyCouponUseCase {
         this.orderRepository = orderRepository;
     }
 
-    // PROBLEMA: os descontos de todos os cupons são calculados sobre o total ORIGINAL.
-    // Com dois cupons combinados (ex: CategoryCoupon + MinValueCoupon), ambos descontam
-    // sobre o mesmo valor base — o desconto total excede o esperado.
-    // Exatamente o bug que causou R$ 1,8 M de prejuízo na Promofy em produção.
+    // SOLUÇÃO: cada cupom calcula o desconto sobre o total CORRENTE — não sobre o original.
+    // O segundo cupom desconta sobre o valor já reduzido pelo primeiro.
+    // A composição de descontos é correta para qualquer número de cupons.
     public Money execute(Long orderId, List<Coupon> coupons) {
         if (coupons == null) {
             throw new IllegalArgumentException("Lista de cupons não pode ser nula");
         }
         Order order = orderRepository.findById(orderId)
             .orElseThrow(() -> new OrderNotFoundException(orderId));
-        Money original = new Money(order.totalAmount());
-        Money totalDiscount = Money.ZERO;
+        Money total = new Money(order.totalAmount());
         for (Coupon coupon : coupons) {
-            totalDiscount = totalDiscount.add(coupon.calculateDiscount(original)); // BUG: sempre sobre original
+            total = total.subtract(coupon.calculateDiscount(total)); // SOLUÇÃO: total corrente
         }
-        return original.subtract(totalDiscount);
+        return total;
     }
 }
-
