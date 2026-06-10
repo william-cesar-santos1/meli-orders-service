@@ -17,4 +17,3 @@ public interface InventoryRepository extends JpaRepository<InventoryEntity, Stri
     @Query("SELECT i FROM InventoryEntity i WHERE i.productId = :productId")
     Optional<InventoryEntity> findByProductIdWithLock(@Param("productId") String productId);
 }
-

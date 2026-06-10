@@ -2,12 +2,14 @@ package br.com.meli.orders.application;
 
 import br.com.meli.orders.api.dto.CreateOrderRequest;
 import br.com.meli.orders.application.port.out.InventoryRepositoryPort;
-import br.com.meli.orders.application.port.out.OrderIndexPort;
+import br.com.meli.orders.application.port.out.OrderEventPort;
 import br.com.meli.orders.application.port.out.OrderRepositoryPort;
+import br.com.meli.orders.application.port.out.OutboxPort;
 import br.com.meli.orders.domain.InventoryItem;
 import br.com.meli.orders.domain.Order;
 import br.com.meli.orders.domain.OrderItem;
 import br.com.meli.orders.domain.exceptions.OutOfStockException;
+import br.com.meli.orders.infrastructure.search.OrderSearchDocument;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,20 +21,19 @@ public class CreateOrderUseCase {
 
     private final OrderRepositoryPort orderRepository;
     private final InventoryRepositoryPort inventoryRepository;
-    private final OrderIndexPort orderIndexPort;
+    private final OutboxPort outboxPort;
+    private final OrderEventPort orderEventPort;
 
     public CreateOrderUseCase(OrderRepositoryPort orderRepository,
                                InventoryRepositoryPort inventoryRepository,
-                               OrderIndexPort orderIndexPort) {
+                               OutboxPort outboxPort,
+                               OrderEventPort orderEventPort) {
         this.orderRepository = orderRepository;
         this.inventoryRepository = inventoryRepository;
-        this.orderIndexPort = orderIndexPort;
+        this.outboxPort = outboxPort;
+        this.orderEventPort = orderEventPort;
     }
 
-    // SOLUÇÃO (Bloco 1 — ACID): @Transactional envolve todo o método em uma única
-    // transação do banco de dados. Se qualquer operação falhar, o banco reverte
-    // automaticamente todas as mudanças já feitas (ROLLBACK).
-    // Pedido e decremento de inventário ocorrem juntos ou não ocorrem — nunca metade.
     @Transactional
     public Order execute(CreateOrderRequest request) {
         List<OrderItem> items = request.items().stream()
@@ -46,12 +47,10 @@ public class CreateOrderUseCase {
                 .toList();
 
         Order order = Order.create(request.customerId(), items);
-        Order saved = orderRepository.save(order); // PostgreSQL — confirmado
+        Order saved = orderRepository.save(order);
 
-        // agora, se qualquer linha abaixo falhar, o pedido acima também é revertido
         for (CreateOrderRequest.Item item : request.items()) {
-            // PROBLEMA: leitura e escrita sem proteção de concorrência (resolvido no Bloco 2).
-            InventoryItem inv = inventoryRepository.findByProductId(item.productId())
+            InventoryItem inv = inventoryRepository.findByProductIdWithLock(item.productId())
                     .orElseThrow(() -> new OutOfStockException(item.productId()));
 
             if (inv.quantity() < item.quantity()) {
@@ -60,14 +59,19 @@ public class CreateOrderUseCase {
             inventoryRepository.save(inv.withQuantity(inv.quantity() - item.quantity()));
         }
 
-        // PROBLEMA: o pedido é gravado no PostgreSQL e indexado no Elasticsearch
-        // em operações separadas, sem transação distribuída entre os dois.
-        // Se o Elasticsearch estiver fora do ar, o pedido existirá na fonte de verdade
-        // mas não no índice de busca — inconsistência silenciosa.
-        orderIndexPort.index(saved); // Elasticsearch — pode falhar
+        // SOLUCAO (Bloco 3 — Outbox): em vez de chamar Elasticsearch diretamente,
+        // grava o evento na tabela outbox dentro da MESMA transacao do Postgres.
+        // Se o Elasticsearch estiver fora do ar, o pedido e salvo normalmente
+        // e o evento fica na fila para ser processado quando o servico voltar.
+        outboxPort.save(
+                saved.id().toString(),
+                "ORDER_CREATED",
+                saved
+        );
+
+        // Log de evento no MongoDB para auditoria/replay (consistencia eventual aceita)
+        orderEventPort.recordOrderPlaced(saved);
 
         return saved;
     }
 }
-
-

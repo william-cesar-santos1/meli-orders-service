@@ -37,8 +37,8 @@ public class OrderEntity {
     private Instant createdAt;
 
     // SOLUCAO (Bloco 2 — optimistic locking): @Version faz o Hibernate incluir
-    // a coluna version no WHERE do UPDATE. Se outra transação já alterou o registro,
-    // o UPDATE afeta 0 linhas e o Hibernate lança OptimisticLockException — sem lost update.
+    // a coluna version no WHERE do UPDATE. Se outra transacao ja alterou o registro,
+    // o UPDATE afeta 0 linhas e o Hibernate lanca OptimisticLockException — sem lost update.
     @Version
     private Long version;
 

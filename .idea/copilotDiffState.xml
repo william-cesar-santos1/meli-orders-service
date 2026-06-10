@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="$PROJECT_DIR$/src/main/java/br/com/meli/orders/infrastructure/mongo/OrderEventDocument.java">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/src/main/java/br/com/meli/orders/infrastructure/mongo/OrderEventDocument.java" />
+              <option name="updatedContent" value="package br.com.meli.orders.infrastructure.mongo;&#10;&#10;import org.springframework.data.annotation.Id;&#10;import org.springframework.data.mongodb.core.mapping.Document;&#10;&#10;import java.time.Instant;&#10;import java.util.Map;&#10;&#10;@Document(collection = &quot;order_events&quot;)&#10;public class OrderEventDocument {&#10;&#10;    @Id&#10;    private String id;&#10;    private String orderId;&#10;    private String customerId;&#10;    private String eventType;&#10;    private Instant occurredAt;&#10;    private Map&lt;String, Object&gt; payload;&#10;&#10;    public OrderEventDocument() {}&#10;&#10;    public String getId() { return id; }&#10;    public void setId(String id) { this.id = id; }&#10;&#10;    public String getOrderId() { return orderId; }&#10;    public void setOrderId(String orderId) { this.orderId = orderId; }&#10;&#10;    public String getCustomerId() { return customerId; }&#10;    public void setCustomerId(String customerId) { this.customerId = customerId; }&#10;&#10;    public String getEventType() { return eventType; }&#10;    public void setEventType(String eventType) { this.eventType = eventType; }&#10;&#10;    public Instant getOccurredAt() { return occurredAt; }&#10;    public void setOccurredAt(Instant occurredAt) { this.occurredAt = occurredAt; }&#10;&#10;    public Map&lt;String, Object&gt; getPayload() { return payload; }&#10;    public void setPayload(Map&lt;String, Object&gt; payload) { this.payload = payload; }&#10;}&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/src/main/java/br/com/meli/orders/infrastructure/outbox/OutboxProcessor.java">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/src/main/java/br/com/meli/orders/infrastructure/outbox/OutboxProcessor.java" />
+              <option name="updatedContent" value="package br.com.meli.orders.infrastructure.outbox;&#10;&#10;import br.com.meli.orders.infrastructure.search.OrderSearchDocument;&#10;import br.com.meli.orders.infrastructure.search.OrderSearchRepository;&#10;import org.springframework.scheduling.annotation.Scheduled;&#10;import org.springframework.stereotype.Component;&#10;import org.springframework.transaction.annotation.Transactional;&#10;&#10;import java.time.Instant;&#10;import java.util.List;&#10;&#10;@Component&#10;public class OutboxProcessor {&#10;&#10;    private final OutboxJpaRepository outboxRepository;&#10;    private final OrderSearchRepository searchRepository;&#10;&#10;    public OutboxProcessor(OutboxJpaRepository outboxRepository,&#10;                           OrderSearchRepository searchRepository) {&#10;        this.outboxRepository = outboxRepository;&#10;        this.searchRepository = searchRepository;&#10;    }&#10;&#10;    // SOLUCAO (Bloco 3 — Outbox processor com controle de concorrencia):&#10;    // findUnprocessedForUpdate usa FOR UPDATE SKIP LOCKED — cada entrada&#10;    // e processada por exatamente um pod, mesmo com multiplas instancias ativas.&#10;    // Se o Elasticsearch falhar, a transacao faz rollback: o lock e liberado&#10;    // e a entrada permanece pendente para o proximo ciclo.&#10;    // A entrada so e marcada como processada apos a indexacao confirmar E&#10;    // a transacao confirmar no Postgres — sem perda de evento.&#10;    @Scheduled(fixedDelay = 1000)&#10;    @Transactional&#10;    public void process() {&#10;        List&lt;OutboxEntry&gt; pending = outboxRepository.findUnprocessedForUpdate(10);&#10;        for (OutboxEntry entry : pending) {&#10;            try {&#10;                searchRepository.save(OrderSearchDocument.fromJson(entry.getPayload()));&#10;                entry.setProcessedAt(Instant.now());&#10;                outboxRepository.save(entry);&#10;            } catch (Exception e) {&#10;                // rollback: lock liberado, entrada volta para a fila&#10;                // producao: adicionar retry_count e dead-letter apos N falhas&#10;                throw new RuntimeException(&quot;Falha ao processar outbox entry &quot; + entry.getId(), e);&#10;            }&#10;        }&#10;    }&#10;}&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
