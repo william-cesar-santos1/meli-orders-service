@@ -3,10 +3,12 @@ package br.com.meli.orders.application;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import br.com.meli.orders.domain.exceptions.CatalogServiceUnavailableException;
 import br.com.meli.orders.domain.exceptions.ProductUnavailableException;
+import br.com.meli.orders.infrastructure.search.OrderSearchRepository;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -32,6 +34,10 @@ class CatalogServiceWireMockTest {
     static WireMockExtension wireMock = WireMockExtension.newInstance()
         .options(wireMockConfig().dynamicPort())
         .build();
+
+    // Elasticsearch não é necessário neste teste — mock evita ConnectionRefused ao subir contexto.
+    @MockBean
+    OrderSearchRepository orderSearchRepository;
 
     @DynamicPropertySource
     static void configureInfra(DynamicPropertyRegistry registry) {
@@ -69,4 +75,3 @@ class CatalogServiceWireMockTest {
             .isInstanceOf(CatalogServiceUnavailableException.class);
     }
 }
-
