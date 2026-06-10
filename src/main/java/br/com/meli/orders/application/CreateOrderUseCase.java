@@ -66,7 +66,7 @@ public class CreateOrderUseCase {
         outboxPort.save(
                 saved.id().toString(),
                 "ORDER_CREATED",
-                OrderSearchDocument.from(saved).toJson()
+                saved
         );
 
         // Log de evento no MongoDB para auditoria/replay (consistencia eventual aceita)
