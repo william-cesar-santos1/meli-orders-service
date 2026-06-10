@@ -35,8 +35,7 @@ public class OrderSimulation extends Simulation {
     HttpProtocolBuilder httpProtocol = http
             .baseUrl(BASE_URL)
             .acceptHeader("application/json")
-            .contentTypeHeader("application/json")
-            .disableKeepAlive();
+            .contentTypeHeader("application/json");
 
     // -----------------------------------------------------------------------
     // Cenário 1 — criação de pedidos (exercita ACID, pool, batch, Outbox)
@@ -114,4 +113,3 @@ public class OrderSimulation extends Simulation {
                 );
     }
 }
-
