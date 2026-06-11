@@ -20,9 +20,6 @@ public class OutboxEntry {
     @Column(name = "event_type", nullable = false)
     private String eventType;
 
-    // @JdbcTypeCode(SqlTypes.JSON): Hibernate mapeia para jsonb no PostgreSQL e para
-    // JSON/TEXT no H2 — compatível com ambos sem precisar de columnDefinition por perfil.
-    @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false)
     private String payload;
 
