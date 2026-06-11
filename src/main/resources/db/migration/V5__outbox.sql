@@ -6,7 +6,7 @@ CREATE TABLE order_outbox
     id           UUID PRIMARY KEY,
     aggregate_id VARCHAR(100) NOT NULL,
     event_type   VARCHAR(100) NOT NULL,
-    payload      JSONB        NOT NULL,
+    payload      VARCHAR(4000) NOT NULL,
     created_at   TIMESTAMP    NOT NULL,
     processed_at TIMESTAMP    NULL
 );

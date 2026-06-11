@@ -2,7 +2,7 @@
 
 -- 3 produtos no inventário
 INSERT INTO inventory (product_id, name, quantity)
-VALUES ('prod-tenis', 'Tênis Nike Air Max 42 azul', 5),
+VALUES ('prod-tenis', 'Tênis Nike Air Max 42 azul', 5000),
        ('prod-camisa', 'Camisa Polo M branca', 10),
        ('prod-livro', 'Designing Data-Intensive Applications', 3);
 

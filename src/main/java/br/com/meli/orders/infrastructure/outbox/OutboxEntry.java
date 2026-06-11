@@ -18,7 +18,7 @@ public class OutboxEntry {
     @Column(name = "event_type", nullable = false)
     private String eventType;
 
-    @Column(columnDefinition = "jsonb", nullable = false)
+    @Column
     private String payload;
 
     @Column(name = "created_at", nullable = false)

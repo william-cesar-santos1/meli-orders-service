@@ -24,7 +24,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        generate_statistics: true
+        generate_statistics: false
         jdbc:
           # SOLUCAO (Bloco 2 — batch insert): agrupa ate 50 statements em uma chamada.
           # Requer SEQUENCE (nao IDENTITY) na entidade. Reduz N round-trips para N/50.
