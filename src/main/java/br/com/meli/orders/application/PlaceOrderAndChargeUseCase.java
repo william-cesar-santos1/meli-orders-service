@@ -6,16 +6,10 @@ import br.com.meli.orders.application.port.out.OrderRepositoryPort;
 import br.com.meli.orders.domain.Order;
 import br.com.meli.orders.domain.OrderStatus;
 import br.com.meli.orders.domain.billing.PaymentStatus;
-import org.springframework.stereotype.Service;
 
-// PROBLEMA: fluxo distribuido implementado de forma linear sem qualquer mecanismo de
-// compensacao. Se a cobranca (BillingClient) falhar apos o pedido ter sido criado,
-// o pedido permanece no banco com status CREATED sem nunca ser cancelado —
-// gerando um "pedido orfao" (orphan order). Em sistemas distribuidos,
-// falhas parciais sao inevitaveis. Sem compensacao (Saga Pattern),
-// o estado do sistema fica inconsistente. Principio violado: atomicidade
-// de transacoes distribuidas.
-@Service
+// SOLUÇÃO: @Service removido — configurado via UseCaseConfig (infrastructure/config).
+// O caso de uso e um POJO puro sem dependencias de framework.
+// Principio: Dependency Rule — camadas internas nao conhecem frameworks externos.
 public class PlaceOrderAndChargeUseCase {
 
     private final CreateOrderUseCase createOrderUseCase;

@@ -53,10 +53,10 @@
         </dependency>
 
         <!-- NoSQL -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-mongodb</artifactId>
-        </dependency>
+        <!-- SOLUÇÃO: spring-boot-starter-data-mongodb removido definitivamente.
+             O servico nao depende mais de MongoDB para nenhuma funcionalidade.
+             Toda persistencia transacional usa PostgreSQL + JPA.
+             Eventos sao publicados via Outbox Pattern (PostgreSQL). -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-elasticsearch</artifactId>

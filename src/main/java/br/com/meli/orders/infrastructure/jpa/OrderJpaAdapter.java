@@ -1,6 +1,8 @@
 package br.com.meli.orders.infrastructure.jpa;
 
+import br.com.meli.orders.application.port.out.FindOrderPort;
 import br.com.meli.orders.application.port.out.OrderRepositoryPort;
+import br.com.meli.orders.application.port.out.SaveOrderPort;
 import br.com.meli.orders.domain.Order;
 import br.com.meli.orders.domain.OrderStatus;
 import br.com.meli.orders.domain.exceptions.OrderNotFoundException;
@@ -9,8 +11,12 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Optional;
 
+// SOLUÇÃO: OrderJpaAdapter implementa os novos ports especificos (SaveOrderPort, FindOrderPort)
+// alem do OrderRepositoryPort existente (para compatibilidade).
+// Spring injeta este adapter em qualquer caso de uso que declare SaveOrderPort ou FindOrderPort.
+// Principio: Adapter Pattern + Dependency Inversion.
 @Component
-public class OrderJpaAdapter implements OrderRepositoryPort {
+public class OrderJpaAdapter implements OrderRepositoryPort, SaveOrderPort, FindOrderPort {
 
     private final OrderRepository jpaRepository;
 
@@ -38,13 +44,10 @@ public class OrderJpaAdapter implements OrderRepositoryPort {
     }
 
     @Override
-    // PROBLEMA: findByCustomerId usa LAZY loading para a associação 'items'.
-    // O Hibernate emite 1 query adicional por pedido para carregar os itens —
-    // o problema N+1. Com 100 pedidos: 101 queries ao banco por requisição.
+    // SOLUÇÃO: usa JOIN FETCH para carregar pedido + itens em uma unica query SQL.
     public List<Order> findByCustomerId(String customerId) {
-        return jpaRepository.findByCustomerId(customerId).stream()
+        return jpaRepository.findWithItemsByCustomer(customerId).stream()
                 .map(OrderEntity::toDomain)
                 .toList();
     }
 }
-
