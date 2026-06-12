@@ -39,7 +39,7 @@ public class AddItemToOrderUseCase {
         updated.add(newItem);
         return orderRepository.save(
             new Order(order.id(), order.customerId(), updated,
-                order.status(), order.totalAmount(), order.createdAt()));
+                order.status(), order.totalAmount(), order.createdAt(), order.paymentStatus()));
     }
 }
 

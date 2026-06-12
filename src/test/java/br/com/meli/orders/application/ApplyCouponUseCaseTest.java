@@ -47,7 +47,7 @@ class ApplyCouponUseCaseTest {
                 // import explícito para evitar ambiguidade com org.junit.jupiter.api.Order
                 br.com.meli.orders.domain.Order order = new br.com.meli.orders.domain.Order(
                     1L, "customer-test", List.of(), OrderStatus.CREATED,
-                    scenario.orderTotal().amount(), Instant.now());
+                    scenario.orderTotal().amount(), Instant.now(), br.com.meli.orders.domain.PaymentStatus.PENDING);
                 when(repo.findById(1L)).thenReturn(Optional.of(order));
                 Money result = uc.execute(1L, scenario.coupons());
                 assertThat(result).isEqualTo(scenario.expectedTotal());
