@@ -1,5 +1,9 @@
 version: '3.9'
 
+# SOLUÇÃO: docker-compose.yml atualizado para aula 5 — dependencias minimas.
+# MongoDB REMOVIDO definitivamente. Redpanda adicionado para eventos de dominio.
+# Principio: infraestrutura como codigo — sem servicos desnecessarios no ambiente local.
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -8,9 +12,6 @@ services:
       POSTGRES_DB: orders_db
       POSTGRES_USER: orders
       POSTGRES_PASSWORD: orders
-    # DEMO WAL (Bloco 2): habilita WAL no nível de replicação e cria o usuário
-    # de replicação usado pela réplica. Sem wal_level=replica, pg_stat_replication
-    # não exibe nenhuma linha e o demo de lag_bytes não funciona.
     command: >
       postgres
         -c wal_level=replica
@@ -28,41 +29,31 @@ services:
       timeout: 5s
       retries: 5
 
-  # DEMO WAL (Bloco 2): réplica de streaming do primário.
-  # Ativa apenas com: docker compose --profile wal-demo up
-  # Após subir, use no primário:
-  #   SELECT client_addr, pg_wal_lsn_diff(sent_lsn, replay_lsn) AS lag_bytes
-  #   FROM pg_stat_replication;
-  # Para simular falha: docker stop meli-orders-postgres-replica
-  postgres-replica:
-    image: postgres:16-alpine
-    container_name: meli-orders-postgres-replica
-    environment:
-      PGUSER: replicator
-      PGPASSWORD: replicator
-    command: |
-      bash -c "
-        until pg_basebackup -h postgres -D /var/lib/postgresql/data \
-          -U replicator -Fp -Xs -P -R 2>/dev/null; do
-          echo 'Aguardando primary...' && sleep 3
-        done && postgres
-      "
-    depends_on:
-      - postgres
+  # SOLUÇÃO: Redpanda — broker Kafka-compatible leve para eventos de dominio (Saga, Outbox).
+  # Substitui qualquer necessidade de MongoDB para log de eventos.
+  # Kafka-compatible: producers/consumers Kafka funcionam sem mudanca.
+  redpanda:
+    image: redpandadata/redpanda:v23.3.18
+    container_name: meli-orders-redpanda
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr internal://redpanda:8082,external://localhost:18082
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --rpc-addr redpanda:33145
+      - --advertise-rpc-addr redpanda:33145
+      - --mode dev-container
     ports:
-      - "5433:5432"
-    profiles:
-      - wal-demo
-
-  mongodb:
-    image: mongo:7
-    container_name: meli-orders-mongodb
-    ports:
-      - "27017:27017"
+      - "19092:19092"
+      - "18082:18082"
+      - "18081:18081"
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 15s
+      timeout: 10s
       retries: 5
 
   elasticsearch:

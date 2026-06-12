@@ -6,21 +6,17 @@ import br.com.meli.orders.application.port.out.InventoryRepositoryPort;
 import br.com.meli.orders.application.port.out.OrderEventPort;
 import br.com.meli.orders.application.port.out.OrderRepositoryPort;
 import br.com.meli.orders.application.port.out.OutboxPort;
+import br.com.meli.orders.application.saga.OrderSagaOrchestrator;
 import br.com.meli.orders.api.BillingClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 // SOLUÇÃO: configuracao responsavel por instanciar os casos de uso como beans Spring.
-// Os casos de uso sao POJOs puros — sem @Service. A responsabilidade de registro no
-// container de injecao de dependencias fica na camada de infraestrutura/config.
+// Os casos de uso sao POJOs puros — sem @Service.
 // Principio: Dependency Rule (Clean Architecture) — frameworks ficam na camada mais externa.
-// O dominio e a aplicacao sao independentes do Spring.
 @Configuration
 public class UseCaseConfig {
 
-    // SOLUÇÃO: CreateOrderUseCase e declarado aqui, na camada de config (infra),
-    // em vez de usar @Service na propria classe. Isso elimina a dependencia de
-    // Spring Framework da camada de aplicacao.
     @Bean
     public CreateOrderUseCase createOrderUseCase(
             OrderRepositoryPort orderRepository,
@@ -37,5 +33,14 @@ public class UseCaseConfig {
             OrderRepositoryPort orderRepository) {
         return new PlaceOrderAndChargeUseCase(createOrderUseCase, billingClient, orderRepository);
     }
-}
 
+    // SOLUÇÃO: Saga Orchestrator registrado como bean — substitui PlaceOrderAndChargeUseCase
+    // para fluxos que precisam de compensacao garantida.
+    @Bean
+    public OrderSagaOrchestrator orderSagaOrchestrator(
+            CreateOrderUseCase createOrderUseCase,
+            BillingClient billingClient,
+            OrderRepositoryPort orderRepository) {
+        return new OrderSagaOrchestrator(createOrderUseCase, billingClient, orderRepository);
+    }
+}
