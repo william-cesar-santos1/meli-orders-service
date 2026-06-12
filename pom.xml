@@ -91,11 +91,6 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>mongodb</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
             <artifactId>elasticsearch</artifactId>
             <scope>test</scope>
         </dependency>
@@ -112,11 +107,19 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Bloco 2: WireMock para simular falhas do serviço de catálogo -->
+        <!-- Bloco 2: WireMock para simular falhas do servio de catlogo -->
         <dependency>
             <groupId>org.wiremock</groupId>
             <artifactId>wiremock-standalone</artifactId>
             <version>3.3.1</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Aula 5: ArchUnit para testes de arquitetura (Bounded Contexts e Clean Architecture) -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>1.3.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

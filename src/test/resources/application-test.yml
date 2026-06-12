@@ -1,12 +1,10 @@
-# SOLUÇÃO: H2 removido. O datasource e o catálogo são injetados via @DynamicPropertySource.
-# Nenhuma infraestrutura é configurada estaticamente — cada teste controla a sua.
+# SOLUCAO: MongoDB removido. H2 removido. O datasource e o catlogo sao injetados via @DynamicPropertySource.
+# Nenhuma infraestrutura e configurada estaticamente — cada teste controla a sua.
 spring:
   jpa:
     hibernate:
       ddl-auto: validate
   data:
-    mongodb:
-      uri: mongodb://localhost:27017/orders_test
     redis:
       host: localhost
       port: 6379

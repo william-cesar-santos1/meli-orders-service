@@ -2,7 +2,6 @@ package br.com.meli.orders.infrastructure.search;
 
 import br.com.meli.orders.domain.Order;
 import br.com.meli.orders.domain.OrderStatus;
-import br.com.meli.orders.domain.PaymentStatus;
 import br.com.meli.orders.infrastructure.jpa.OrderEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -70,8 +69,7 @@ public class OrderSearchDocument {
                 java.util.List.of(),
                 status != null ? OrderStatus.valueOf(status) : OrderStatus.CREATED,
                 totalAmount,
-                createdAt,
-                PaymentStatus.PENDING
+                createdAt
         );
     }
 

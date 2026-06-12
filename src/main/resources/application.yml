@@ -35,8 +35,6 @@ spring:
         default_batch_fetch_size: 50
 
   data:
-    mongodb:
-      uri: mongodb://localhost:27017/orders_catalog
     redis:
       host: localhost
       port: 6379

@@ -1,6 +1,6 @@
 package br.com.meli.orders.api;
 
-import br.com.meli.orders.domain.PaymentStatus;
+import br.com.meli.orders.domain.billing.PaymentStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 

@@ -5,7 +5,7 @@ import br.com.meli.orders.api.dto.CreateOrderRequest;
 import br.com.meli.orders.application.port.out.OrderRepositoryPort;
 import br.com.meli.orders.domain.Order;
 import br.com.meli.orders.domain.OrderStatus;
-import br.com.meli.orders.domain.PaymentStatus;
+import br.com.meli.orders.domain.billing.PaymentStatus;
 import org.springframework.stereotype.Service;
 
 // PROBLEMA: fluxo distribuido implementado de forma linear sem qualquer mecanismo de
