@@ -5,12 +5,17 @@
   "timezone": "browser",
   "refresh": "5s",
   "schemaVersion": 38,
+  "time": { "from": "now-5m", "to": "now" },
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"],
+    "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+  },
   "panels": [
     {
       "id": 1,
-      "title": "Taxa de Sucesso (2xx) — /orders",
+      "title": "Taxa de Sucesso (2xx) — todos endpoints",
       "type": "gauge",
-      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 8 },
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 8 },
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
@@ -28,7 +33,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"meli-orders\",uri=\"/orders\",status=~\"2..\"}[1m])) / sum(rate(http_server_requests_seconds_count{job=\"meli-orders\",uri=\"/orders\"}[1m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"meli-orders\",uri=~\"/orders.*\",status=~\"2..\"}[1m])) / sum(rate(http_server_requests_seconds_count{job=\"meli-orders\",uri=~\"/orders.*\"}[1m]))",
           "legendFormat": "Sucesso",
           "refId": "A"
         }
@@ -37,9 +42,9 @@
     },
     {
       "id": 2,
-      "title": "Taxa de Erro (4xx + 5xx) — /orders",
+      "title": "Taxa de Erro 4xx — todos endpoints",
       "type": "gauge",
-      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 8 },
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 8 },
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
@@ -57,8 +62,37 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"meli-orders\",uri=\"/orders\",status=~\"4..|5..\"}[1m])) / sum(rate(http_server_requests_seconds_count{job=\"meli-orders\",uri=\"/orders\"}[1m]))",
-          "legendFormat": "Erro",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"meli-orders\",uri=~\"/orders.*\",status=~\"4..\"}[1m])) / sum(rate(http_server_requests_seconds_count{job=\"meli-orders\",uri=~\"/orders.*\"}[1m]))",
+          "legendFormat": "4xx",
+          "refId": "A"
+        }
+      ],
+      "datasource": "Prometheus"
+    },
+    {
+      "id": 8,
+      "title": "Taxa de Erro 5xx — todos endpoints",
+      "type": "gauge",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.005 },
+              { "color": "red", "value": 0.01 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"meli-orders\",uri=~\"/orders.*\",status=~\"5..\"}[1m])) / sum(rate(http_server_requests_seconds_count{job=\"meli-orders\",uri=~\"/orders.*\"}[1m]))",
+          "legendFormat": "5xx",
           "refId": "A"
         }
       ],
@@ -68,7 +102,7 @@
       "id": 3,
       "title": "RPS por Endpoint",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",
@@ -92,7 +126,7 @@
           "refId": "C"
         },
         {
-          "expr": "rate(http_server_requests_seconds_count{job=\"meli-orders\",uri=~\"/orders/\\\\d+/pay\",method=\"PATCH\"}[1m])",
+          "expr": "rate(http_server_requests_seconds_count{job=\"meli-orders\",uri=\"/orders/{id}/pay\",method=\"PATCH\"}[1m])",
           "legendFormat": "PATCH /orders/{id}/pay",
           "refId": "D"
         }
@@ -103,7 +137,7 @@
       "id": 4,
       "title": "Sucesso vs Erro ao longo do tempo",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",
@@ -111,7 +145,13 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Erros (4xx+5xx)" },
+            "matcher": { "id": "byName", "options": "Erros 4xx" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Erros 5xx" },
             "properties": [
               { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
             ]
@@ -147,7 +187,7 @@
       "id": 5,
       "title": "Distribuição de Status HTTP — /orders (POST)",
       "type": "piechart",
-      "gridPos": { "x": 0, "y": 16, "w": 8, "h": 8 },
+      "gridPos": { "x": 0, "y": 24, "w": 8, "h": 8 },
       "fieldConfig": {
         "defaults": { "unit": "short" }
       },
@@ -165,7 +205,7 @@
       "id": 6,
       "title": "Total de pedidos criados (últimos 5 min)",
       "type": "stat",
-      "gridPos": { "x": 8, "y": 16, "w": 8, "h": 8 },
+      "gridPos": { "x": 8, "y": 24, "w": 8, "h": 8 },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
@@ -191,7 +231,7 @@
       "id": 7,
       "title": "Erros por tipo (últimos 5 min)",
       "type": "stat",
-      "gridPos": { "x": 16, "y": 16, "w": 8, "h": 8 },
+      "gridPos": { "x": 16, "y": 24, "w": 8, "h": 8 },
       "fieldConfig": {
         "defaults": {
           "unit": "short",

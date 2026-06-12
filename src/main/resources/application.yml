@@ -9,9 +9,10 @@ spring:
     hikari:
       # SOLUCAO (Bloco 1 — backpressure no banco): limitar o pool forca a aplicacao
       # a sinalizar ao cliente (via timeout) quando o banco esta sob pressao.
-      maximum-pool-size: 10
-      minimum-idle: 5
+      maximum-pool-size: 20
+      minimum-idle: 2
       connection-timeout: 3000
+      transaction-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
 
@@ -20,11 +21,11 @@ spring:
       ddl-auto: validate
     # SOLUCAO (Bloco 1 — observabilidade): habilitar log torna visivel
     # quantas queries o Hibernate gera por requisicao.
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
-        generate_statistics: true
+        generate_statistics: false
         jdbc:
           # SOLUCAO (Bloco 2 — batch insert): agrupa ate 50 statements em uma chamada.
           # Requer SEQUENCE (nao IDENTITY) na entidade. Reduz N round-trips para N/50.
@@ -63,6 +64,12 @@ management:
     export:
       prometheus:
         enabled: true
+    # SOLUCAO (Observabilidade — histograma de latência): habilita os buckets de histograma
+    # para http.server.requests. Sem isso, histogram_quantile() no Prometheus retorna NaN
+    # e os painéis de p99/p95/p50 do Grafana ficam vazios.
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
   health:
     elasticsearch:
       enabled: false

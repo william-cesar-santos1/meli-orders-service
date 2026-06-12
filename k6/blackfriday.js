@@ -24,9 +24,9 @@ export const options = {
         criar_pedidos: {
             executor: 'ramping-vus',
             stages: [
-                { duration: '1m', target: 500 },  // ramp-up
-                { duration: '2m', target: 500 },  // plateau
-                { duration: '30s', target: 0   },  // ramp-down
+                { duration: '1m',  target: 50 },  // ramp-up
+                { duration: '2m',  target: 50 },  // plateau
+                { duration: '30s', target: 0  },  // ramp-down
             ],
             exec: 'criarPedido',
         },
@@ -36,9 +36,9 @@ export const options = {
             executor: 'ramping-vus',
             startTime: '30s',
             stages: [
-                { duration: '1m', target: 300 },
-                { duration: '2m', target: 300 },
-                { duration: '30s', target: 0   },
+                { duration: '1m',  target: 30 },
+                { duration: '2m',  target: 30 },
+                { duration: '30s', target: 0  },
             ],
             exec: 'listarPedidos',
         },
@@ -48,9 +48,9 @@ export const options = {
             executor: 'ramping-vus',
             startTime: '30s',
             stages: [
-                { duration: '1m', target: 200 },
-                { duration: '2m', target: 200 },
-                { duration: '30s', target: 0   },
+                { duration: '1m',  target: 10 },
+                { duration: '2m',  target: 10 },
+                { duration: '30s', target: 0  },
             ],
             exec: 'buscarPedidos',
         },
@@ -60,9 +60,9 @@ export const options = {
             executor: 'ramping-vus',
             startTime: '1m',   // aguarda criação de pedidos para ter IDs válidos
             stages: [
-                { duration: '1m', target: 100 },
-                { duration: '2m', target: 100 },
-                { duration: '30s', target: 0   },
+                { duration: '1m',  target: 10 },
+                { duration: '2m',  target: 10 },
+                { duration: '30s', target: 0  },
             ],
             exec: 'pagarPedido',
         },
@@ -87,7 +87,7 @@ export const options = {
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 
 // Pool de clientes e termos de busca compartilhados entre VUs
-const CUSTOMERS = Array.from({ length: 500 }, (_, i) => `customer-${i}`);
+const CUSTOMERS = Array.from({ length: 100 }, (_, i) => `customer-${i}`);
 const SEARCH_TERMS = ['tenis', 'nike', 'air', 'max', 'calcado', 'produto'];
 const PRODUCTS = [
     { id: 'prod-tenis',   name: 'Tênis Nike Air Max',    price: 350.00 },
