@@ -109,11 +109,24 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Bloco main: H2 em memória para plantar o problema do banco em memória nos testes.
-             Removido em feature/testcontainers-wiremock-5. -->
+        <!-- Bloco 2: spring-boot-testcontainers e junit-jupiter integram Testcontainers com Spring Boot.
+             O container é iniciado automaticamente antes do contexto e encerrado após os testes. -->
         <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Bloco 2: WireMock para simular falhas do serviço de catálogo -->
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <version>3.3.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
