@@ -19,8 +19,7 @@
     <properties>
         <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <gatling.version>3.11.5</gatling.version>
-        <gatling-maven-plugin.version>4.9.6</gatling-maven-plugin.version>
+        <!-- Gatling removido neste branch — substituído por k6 -->
     </properties>
 
     <dependencies>
@@ -101,16 +100,7 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Performance -->
-        <dependency>
-            <groupId>io.gatling.highcharts</groupId>
-            <artifactId>gatling-charts-highcharts</artifactId>
-            <version>${gatling.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- Bloco 2: spring-boot-testcontainers e junit-jupiter integram Testcontainers com Spring Boot.
-             O container é iniciado automaticamente antes do contexto e encerrado após os testes. -->
+        <!-- Bloco 2: spring-boot-testcontainers e junit-jupiter integram Testcontainers com Spring Boot. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-testcontainers</artifactId>
@@ -137,16 +127,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
-            <plugin>
-                <groupId>io.gatling</groupId>
-                <artifactId>gatling-maven-plugin</artifactId>
-                <version>${gatling-maven-plugin.version}</version>
-                <configuration>
-                    <simulationClass>br.com.meli.orders.performance.OrderSimulation</simulationClass>
-                </configuration>
-            </plugin>
-            <!-- Bloco 1: Pitest — mutation testing para medir qualidade da suíte de testes.
-                 Execução: mvn test-compile pitest:mutationCoverage -->
+            <!-- Bloco 1: Pitest — mutation testing para medir qualidade da suíte de testes. -->
             <plugin>
                 <groupId>org.pitest</groupId>
                 <artifactId>pitest-maven</artifactId>
