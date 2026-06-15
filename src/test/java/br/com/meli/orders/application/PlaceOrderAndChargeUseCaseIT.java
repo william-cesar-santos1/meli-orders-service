@@ -10,6 +10,7 @@ import br.com.meli.orders.domain.PaymentStatus;
 import br.com.meli.orders.infrastructure.jpa.InventoryEntity;
 import br.com.meli.orders.infrastructure.jpa.InventoryRepository;
 import br.com.meli.orders.infrastructure.search.OrderSearchRepository;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -66,6 +67,7 @@ class PlaceOrderAndChargeUseCaseIT {
     }
 
     @Test
+    @Transactional
     void whenBillingFails_orderShouldBeCancelledNotOrphaned() {
         // Simula falha do servico de billing
         when(billingClient.charge(any(), any())).thenReturn(PaymentStatus.FAILED);
