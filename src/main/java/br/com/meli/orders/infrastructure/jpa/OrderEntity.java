@@ -81,7 +81,7 @@ public class OrderEntity {
                         ie.getProductName()
                 ))
                 .toList();
-        return new Order(id, customerId, domainItems, OrderStatus.valueOf(status), totalAmount, createdAt);
+        return new Order(id, customerId, domainItems, OrderStatus.valueOf(status), totalAmount, createdAt, br.com.meli.orders.domain.PaymentStatus.PENDING);
     }
 
     public Long getId() { return id; }

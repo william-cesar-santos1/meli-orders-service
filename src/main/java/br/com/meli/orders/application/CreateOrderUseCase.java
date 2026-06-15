@@ -9,6 +9,7 @@ import br.com.meli.orders.domain.InventoryItem;
 import br.com.meli.orders.domain.Order;
 import br.com.meli.orders.domain.OrderItem;
 import br.com.meli.orders.domain.exceptions.OutOfStockException;
+import br.com.meli.orders.infrastructure.jpa.OrderRepository;
 import br.com.meli.orders.infrastructure.search.OrderSearchDocument;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
+// PROBLEMA: @Service eh uma anotacao do Spring Framework injetada diretamente no caso de uso.
+// O dominio/aplicacao nao deve conhecer detalhes do framework — isso viola a Dependency Rule
+// da Clean Architecture: camadas internas nao podem depender de frameworks de camadas externas.
+// O caso de uso deveria ser um POJO puro, configurado pelo container de injecao na camada de infraestrutura.
 @Service
 public class CreateOrderUseCase {
 
@@ -23,15 +28,23 @@ public class CreateOrderUseCase {
     private final InventoryRepositoryPort inventoryRepository;
     private final OutboxPort outboxPort;
     private final OrderEventPort orderEventPort;
+    // PROBLEMA: SpringDataOrderRepository (detalhe de infraestrutura JPA) injetado diretamente
+    // no caso de uso da camada de aplicacao. O caso de uso deveria depender apenas de
+    // interfaces (portas de saida) — nunca de implementacoes concretas de infraestrutura.
+    // Isso acopla a logica de negocio ao Spring Data e impede trocar o mecanismo de persistencia
+    // sem alterar o caso de uso.
+    private final OrderRepository springDataOrderRepository;
 
     public CreateOrderUseCase(OrderRepositoryPort orderRepository,
                                InventoryRepositoryPort inventoryRepository,
                                OutboxPort outboxPort,
-                               OrderEventPort orderEventPort) {
+                               OrderEventPort orderEventPort,
+                               OrderRepository springDataOrderRepository) {
         this.orderRepository = orderRepository;
         this.inventoryRepository = inventoryRepository;
         this.outboxPort = outboxPort;
         this.orderEventPort = orderEventPort;
+        this.springDataOrderRepository = springDataOrderRepository;
     }
 
     @Transactional
@@ -59,10 +72,6 @@ public class CreateOrderUseCase {
             inventoryRepository.save(inv.withQuantity(inv.quantity() - item.quantity()));
         }
 
-        // SOLUCAO (Bloco 3 — Outbox): em vez de chamar Elasticsearch diretamente,
-        // grava o evento na tabela outbox dentro da MESMA transacao do Postgres.
-        // Se o Elasticsearch estiver fora do ar, o pedido e salvo normalmente
-        // e o evento fica na fila para ser processado quando o servico voltar.
         outboxPort.save(
                 saved.id().toString(),
                 "ORDER_CREATED",
