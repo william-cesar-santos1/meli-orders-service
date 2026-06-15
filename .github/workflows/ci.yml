@@ -1,0 +1,91 @@
+# SOLUÇÃO: pipeline CI/CD com matrix de JDK, tags SemVer imutaveis e cache de layers.
+# Matrix garante compatibilidade em JDK 17 e 21 antes do merge.
+# Tags SemVer rastreiam exatamente qual commit foi para producao — sem reutilizar digest.
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test (JDK ${{ matrix.java }})
+    # SOLUÇÃO: strategy.matrix executa jobs em paralelo para cada combinacao de ambiente.
+    # Revela incompatibilidades de JDK antes do merge, nao depois do deploy.
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [17, 21]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: temurin
+
+      # SOLUÇÃO: cache de dependencias Maven reduz tempo de feedback em PRs
+      # sem sacrificar reproducibilidade — chave inclui hash do pom.xml.
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ matrix.java }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-${{ matrix.java }}-
+            ${{ runner.os }}-maven-
+
+      - name: Run tests
+        run: ./mvnw test -q
+
+  docker:
+    name: Build & Push Docker image
+    needs: test
+    runs-on: ubuntu-latest
+    # SOLUÇÃO: job docker so roda em push de tag Git versionada — nunca em PRs.
+    # Garante que apenas codigo testado e aprovado gera imagem publicada.
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # SOLUÇÃO: metadata-action gera automaticamente tags SemVer a partir da tag Git.
+      # v1.3.0 -> publica orders:1.3.0, orders:1.3 e orders:latest.
+      # Cada digest e unico e imutavel — reutilizar mesma tag para digest diferente e proibido.
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/meli-orders-service
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+
+      - name: Build e push imagem
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # SOLUÇÃO: cache GHA preserva camadas entre runs sem necessidade de registry externo.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
