@@ -1,8 +1,11 @@
+.git
+.github
 target/
-.git/
 .gitignore
 *.md
-docker/
 monitoring/
+docker/
+**/*.log
+**/.DS_Store
 k6/
 wiremock/
