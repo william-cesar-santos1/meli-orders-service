@@ -89,3 +89,63 @@ jobs:
           # SOLUÇÃO: cache GHA preserva camadas entre runs sem necessidade de registry externo.
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Setup Java para gerar SBOM
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - name: Cache Maven (SBOM)
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-21-${{ hashFiles('**/pom.xml') }}
+
+      # SOLUÇÃO: SBOM gerado como artefato imutavel de cada release.
+      # Permite auditoria retroativa — se CVE-XXXX for publicado amanha,
+      # voce sabe em quais releases ele estava presente sem reconstruir a imagem.
+      - name: Gerar SBOM (CycloneDX)
+        run: ./mvnw cyclonedx:makeAggregateBom -q
+
+      - name: Upload SBOM como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.ref_name }}
+          path: target/bom.xml
+
+      # SOLUÇÃO: Trivy escaneia camadas da imagem e dependencias do SBOM.
+      # exit-code 1 falha o build em CVE CRITICAL — codigo vulneravel nao chega a producao.
+      # Detectar no PR custa 30x menos do que detectar em producao (NIST estudos).
+      - name: Scan de vulnerabilidades com Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/meli-orders-service:${{ steps.meta.outputs.version }}
+          format: table
+          exit-code: '1'
+          severity: CRITICAL,HIGH
+          output: trivy-report.txt
+
+      - name: Upload relatorio Trivy
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report-${{ github.ref_name }}
+          path: trivy-report.txt
+
+      # SOLUÇÃO: comentario automatico no PR traz visibilidade de CVEs sem sair do fluxo
+      # de code review — seguranca no mesmo lugar onde o codigo e revisado.
+      - name: Comentar relatorio Trivy no PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let report = '(sem vulnerabilidades encontradas)';
+            try { report = fs.readFileSync('trivy-report.txt', 'utf8'); } catch(e) {}
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '## 🔐 Trivy Security Scan\n```\n' + report + '\n```'
+            });
