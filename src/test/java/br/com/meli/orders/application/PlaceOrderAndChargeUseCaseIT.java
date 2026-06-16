@@ -6,7 +6,7 @@ import br.com.meli.orders.application.port.out.OrderEventPort;
 import br.com.meli.orders.application.port.out.OrderRepositoryPort;
 import br.com.meli.orders.domain.Order;
 import br.com.meli.orders.domain.OrderStatus;
-import br.com.meli.orders.domain.PaymentStatus;
+import br.com.meli.orders.domain.billing.PaymentStatus;
 import br.com.meli.orders.infrastructure.jpa.InventoryEntity;
 import br.com.meli.orders.infrastructure.jpa.InventoryRepository;
 import br.com.meli.orders.infrastructure.search.OrderSearchRepository;
