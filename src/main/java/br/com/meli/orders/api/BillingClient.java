@@ -1,53 +1,68 @@
 package br.com.meli.orders.api;
 
 import br.com.meli.orders.domain.billing.PaymentStatus;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 
-// PROBLEMA: gateway para servico externo de billing sem timeout explícito e sem
-// circuit breaker. Se o servico de billing ficar lento (ex: 30s por requisicao),
-// todas as threads da aplicacao ficam bloqueadas esperando resposta —
-// levando a uma falha em cascata (cascade failure). O pool de threads do Tomcat
-// se esgota e a aplicacao inteira para de responder, mesmo para endpoints
-// que nao dependem de billing. Principio violado: bulkhead e circuit breaker
-// (Patterns de Resiliencia). Sem timeout: uma dependencia lenta mata todo o servico.
-// Sem circuit breaker: requisicoes continuam chegando mesmo quando billing esta fora do ar.
+// SOLUÇÃO: BillingClient com circuit breaker (Resilience4j), timeout e retry configurados.
+// Protege a aplicacao de falhas em cascata (cascade failure):
+// - Timeout: limita o tempo de espera por uma resposta do billing-service.
+// - Circuit Breaker: apos N falhas consecutivas, o circuito abre e retorna imediatamente
+//   com fallback sem tentar chamar o servico — dando tempo para o billing se recuperar.
+// - Retry: tenta novamente em erros transitorios (ex: 503) antes de abrir o circuito.
+// Principio: Bulkhead + Circuit Breaker (Patterns de Resiliencia — Michael Nygard).
 @Component
 public class BillingClient {
 
-    // PROBLEMA: RestTemplate padrao sem qualquer configuracao de timeout.
-    // O timeout padrao do Java HttpURLConnection eh "infinito" (bloqueante).
-    // Em producao, isso significa que uma unica requisicao lenta pode
-    // manter uma thread bloqueada por minutos ou horas.
-    private final RestTemplate restTemplate = new RestTemplate();
+    private static final Logger log = LoggerFactory.getLogger(BillingClient.class);
 
-    private final String billingServiceUrl = "http://billing-service:8082";
+    private final RestTemplate restTemplate;
 
-    // PROBLEMA: sem @CircuitBreaker, sem @Retry, sem timeout configurado.
-    // Se billing-service estiver fora do ar, cada chamada vai aguardar
-    // ate o TCP timeout do SO (tipicamente 2 minutos) antes de falhar.
+    @Value("${services.billing.url:http://billing-service:8082}")
+    private String billingServiceUrl;
+
+    // SOLUÇÃO: timeout explícito de 2s — protege o pool de threads do Tomcat.
+    // Sem timeout, uma dependencia lenta pode esgotar todas as threads da aplicacao.
+    public BillingClient(RestTemplateBuilder builder) {
+        this.restTemplate = builder
+                .setConnectTimeout(Duration.ofMillis(500))
+                .setReadTimeout(Duration.ofSeconds(2))
+                .build();
+    }
+
+    // SOLUÇÃO: @CircuitBreaker com fallback — se billing-service falhar 5x consecutivas,
+    // o circuito abre e chama billingFallback() imediatamente por 30s.
+    // @Retry tenta 2x antes de contar como falha para o circuit breaker.
+    @CircuitBreaker(name = "billing", fallbackMethod = "billingFallback")
+    @Retry(name = "billing")
     public PaymentStatus charge(Long orderId, BigDecimal amount) {
-        try {
-            String url = billingServiceUrl + "/payments/charge";
-            ChargeRequest request = new ChargeRequest(orderId, amount);
-            // PROBLEMA: chamada REST sincrona e bloqueante para servico externo
-            // sem circuit breaker, sem retry policy e sem fallback definido.
-            ChargeResponse response = restTemplate.postForObject(url, request, ChargeResponse.class);
-            if (response != null) {
-                return PaymentStatus.valueOf(response.status());
-            }
-            return PaymentStatus.FAILED;
-        } catch (Exception e) {
-            // PROBLEMA: captura generica de excecao sem diferenciar erros recuperaveis
-            // (timeout, 503) de erros definitivos (400, 422). Sem circuit breaker,
-            // erros consecutivos nao abrem o circuito para proteger o sistema.
-            return PaymentStatus.FAILED;
+        String url = billingServiceUrl + "/payments/charge";
+        ChargeRequest request = new ChargeRequest(orderId, amount);
+        log.info("BillingClient: enviando cobranca orderId={} amount={}", orderId, amount);
+        ChargeResponse response = restTemplate.postForObject(url, request, ChargeResponse.class);
+        if (response != null) {
+            return PaymentStatus.valueOf(response.status());
         }
+        return PaymentStatus.FAILED;
+    }
+
+    // SOLUÇÃO: fallback chamado quando o circuito esta aberto ou quando todas as tentativas falham.
+    // Retorna FAILED imediatamente — o Saga Orchestrator trata a compensacao.
+    public PaymentStatus billingFallback(Long orderId, BigDecimal amount, Exception ex) {
+        log.warn("BillingClient: circuito aberto ou falha total orderId={} — fallback ativado: {}",
+                orderId, ex.getMessage());
+        return PaymentStatus.FAILED;
     }
 
     record ChargeRequest(Long orderId, BigDecimal amount) {}
     record ChargeResponse(String status) {}
 }
-

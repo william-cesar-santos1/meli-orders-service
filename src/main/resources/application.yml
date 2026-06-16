@@ -52,6 +52,30 @@ server:
 services:
   catalog:
     url: http://localhost:8081
+  billing:
+    url: http://localhost:8082
+
+# SOLUÇÃO: configuracao do Resilience4j para o circuit breaker do BillingClient.
+# Limites conservadores para proteger contra falhas em cascata.
+resilience4j:
+  circuitbreaker:
+    instances:
+      billing:
+        # Abre o circuito apos 50% de falhas em 10 chamadas
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        # Mantém o circuito aberto por 30s antes de tentar novamente
+        wait-duration-in-open-state: 30s
+        # Permite 3 chamadas de teste no estado HALF_OPEN
+        permitted-number-of-calls-in-half-open-state: 3
+        # Registra metrica de circuito no Actuator/Prometheus
+        register-health-indicator: true
+  retry:
+    instances:
+      billing:
+        # Tenta ate 2 vezes antes de contar como falha definitiva
+        max-attempts: 2
+        wait-duration: 200ms
 
 management:
   endpoints:
