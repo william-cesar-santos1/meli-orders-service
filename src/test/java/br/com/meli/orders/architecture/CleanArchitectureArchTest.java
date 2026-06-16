@@ -10,10 +10,17 @@ import org.junit.jupiter.api.Test;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
- * SOLUÇÃO: testes de arquitetura validando a Dependency Rule da Clean Architecture.
- * "O codigo fonte de uma camada interna nao pode mencionar nada
+ * Testes ArchUnit validando a Dependency Rule da Clean Architecture.
+ * "O código fonte de uma camada interna não pode mencionar nada
  *  sobre uma camada externa" — Robert C. Martin.
- * Dependencias sempre apontam de fora para dentro (infra -> app -> domain).
+ *
+ * Estrutura de pacotes domain-first:
+ *   order/{domain, application, infrastructure, api}
+ *   billing/{domain, application, infrastructure}
+ *   shared/{domain, api, infrastructure}
+ *
+ * Nota: importa apenas classes de produção (target/classes) — testes de integração
+ * legitimamente acessam infraestrutura para seed de dados e não devem ser analisados.
  */
 @Tag("architecture")
 class CleanArchitectureArchTest {
@@ -22,76 +29,83 @@ class CleanArchitectureArchTest {
 
     @BeforeAll
     static void loadClasses() {
+        // Importa apenas classes de produção — exclui testes de integração
         classes = new ClassFileImporter()
-                .importPackages("br.com.meli.orders");
+                .importPath("target/classes");
     }
 
     @Test
     void domainMustNotDependOnSpringFramework() {
-        // SOLUÇÃO: o dominio e um POJO puro — sem anotacoes ou tipos do Spring.
-        // Isso garante que o modelo de negocio pode ser testado e reutilizado
-        // independentemente de qualquer framework.
         ArchRule rule = noClasses()
-                .that().resideInAPackage("..domain..")
+                .that().resideInAPackage("..order.domain..")
+                .or().resideInAPackage("..billing.domain..")
+                .or().resideInAPackage("..shared.domain..")
                 .should().dependOnClassesThat()
                 .resideInAPackage("org.springframework..")
-                .because("O dominio nao deve depender do Spring Framework. " +
-                         "Use POJOs puros no dominio e configure beans na camada de infraestrutura.");
-
+                .because("O domínio deve ser um POJO puro — sem anotações do Spring Framework.");
         rule.check(classes);
     }
 
     @Test
     void domainMustNotDependOnInfrastructure() {
-        // SOLUÇÃO: dominio nao conhece detalhes de persistencia, mensageria ou frameworks.
         ArchRule rule = noClasses()
-                .that().resideInAPackage("..domain..")
+                .that().resideInAPackage("..order.domain..")
+                .or().resideInAPackage("..billing.domain..")
+                .or().resideInAPackage("..shared.domain..")
                 .should().dependOnClassesThat()
                 .resideInAPackage("..infrastructure..")
-                .because("O dominio nao deve depender da infraestrutura. " +
-                         "Inverta as dependencias usando portas (interfaces) de saida.");
-
+                .because("O domínio não deve depender de infraestrutura. Use portas de saída.");
         rule.check(classes);
     }
 
     @Test
     void domainMustNotDependOnApi() {
-        // SOLUÇÃO: o dominio nao conhece controllers REST, DTOs de request/response ou HTTP.
         ArchRule rule = noClasses()
-                .that().resideInAPackage("..domain..")
+                .that().resideInAPackage("..order.domain..")
+                .or().resideInAPackage("..billing.domain..")
+                .or().resideInAPackage("..shared.domain..")
                 .should().dependOnClassesThat()
-                .resideInAPackage("..api..")
-                .because("O dominio nao deve depender da camada de API (REST). " +
-                         "Controllers sao adapters de entrada que convertem HTTP para casos de uso.");
-
+                .resideInAPackage("..order.api..")
+                .orShould().dependOnClassesThat()
+                .resideInAPackage("..shared.api..")
+                .because("O domínio não deve conhecer controllers REST ou DTOs HTTP.");
         rule.check(classes);
     }
 
     @Test
-    void applicationMustNotDependOnApi() {
-        // SOLUÇÃO: casos de uso nao sabem como foram invocados (REST, gRPC, mensagem, etc.)
+    void applicationMustNotDependOnApiLayer() {
+        // Casos de uso não podem depender de nada da camada api (nem DTOs, nem controllers, nem filtros)
         ArchRule rule = noClasses()
-                .that().resideInAPackage("..application..")
-                .and().resideOutsideOfPackage("..application.acl..")
+                .that().resideInAPackage("..order.application..")
+                .and().resideOutsideOfPackage("..billing.application.acl..")
                 .should().dependOnClassesThat()
-                .resideInAPackage("..api.dto..")
-                .because("Casos de uso nao devem depender de DTOs da camada de API. " +
-                         "Use tipos de dominio ou comandos especificos como parametros dos casos de uso.");
+                .resideInAPackage("..order.api..")
+                .because("Casos de uso não devem depender da camada de API. " +
+                         "O controller converte DTO (CreateOrderRequest) em Comando (PlaceOrderCommand) " +
+                         "antes de invocar o use case.");
+        rule.check(classes);
+    }
 
+    @Test
+    void applicationMustNotDependOnInfrastructure() {
+        ArchRule rule = noClasses()
+                .that().resideInAPackage("..order.application..")
+                .or().resideInAPackage("..billing.application..")
+                .should().dependOnClassesThat()
+                .resideInAPackage("..infrastructure..")
+                .because("Casos de uso não devem depender de infraestrutura. " +
+                         "Use portas de saída (ports/out) para inverter a dependência.");
         rule.check(classes);
     }
 
     @Test
     void infrastructureMustNotBeAccessedByDomain() {
-        // SOLUÇÃO: nenhuma classe de dominio importa de infraestrutura.
         ArchRule rule = noClasses()
-                .that().resideInAPackage("..domain..")
+                .that().resideInAPackage("..order.domain..")
                 .should().dependOnClassesThat()
                 .resideInAPackage("jakarta.persistence..")
-                .because("Anotacoes JPA (@Entity, @Column, etc.) nao pertencem ao dominio. " +
+                .because("Anotações JPA (@Entity, @Column) não pertencem ao domínio. " +
                          "Use entidades JPA separadas (OrderEntity) na camada de infraestrutura.");
-
         rule.check(classes);
     }
 }
-

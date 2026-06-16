@@ -1,7 +1,7 @@
 package br.com.meli.orders.architecture;
 
-import br.com.meli.orders.application.port.out.FindOrderSummaryPort;
-import br.com.meli.orders.domain.OrderSummary;
+import br.com.meli.orders.order.application.port.out.FindOrderSummaryPort;
+import br.com.meli.orders.order.domain.OrderSummary;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -12,16 +12,9 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * SOLUÇÃO: teste unitario do caso de uso usando fake port in-memory.
- * O fake implementa FindOrderSummaryPort sem JPA, sem banco, sem Spring.
- * Principio: Dependency Inversion + Testability — portas permitem substituir
- * a implementacao real por fakes em testes unitarios rapidos e deterministas.
- */
 @Tag("unit")
 class FindOrderSummaryPortFakeTest {
 
-    // Fake in-memory implementation — sem infraestrutura
     static class FakeOrderSummaryPort implements FindOrderSummaryPort {
         private final Map<Long, OrderSummary> store = new HashMap<>();
 
@@ -51,22 +44,14 @@ class FindOrderSummaryPortFakeTest {
     @Test
     void shouldReturnEmptyWhenOrderDoesNotExist() {
         FakeOrderSummaryPort fakePort = new FakeOrderSummaryPort();
-
-        Optional<OrderSummary> result = fakePort.findSummaryById(99L);
-
-        assertThat(result).isEmpty();
+        assertThat(fakePort.findSummaryById(99L)).isEmpty();
     }
 
     @Test
     void portInterfaceShouldNotDependOnSpringOrInfrastructure() {
-        // SOLUÇÃO: valida que FindOrderSummaryPort e uma interface pura — sem imports Spring.
-        // Portas de saida nao devem ter dependencias de frameworks — apenas de tipos de dominio.
         var methods = FindOrderSummaryPort.class.getMethods();
         assertThat(methods).isNotEmpty();
-
-        // A propria instanciabilidade do fake prova que a porta e um POJO puro
         FakeOrderSummaryPort fake = new FakeOrderSummaryPort();
         assertThat(fake).isInstanceOf(FindOrderSummaryPort.class);
     }
 }
-

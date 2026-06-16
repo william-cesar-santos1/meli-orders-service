@@ -10,10 +10,8 @@ import org.junit.jupiter.api.Test;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
- * SOLUÇÃO: testes de arquitetura com ArchUnit validam regras de bounded contexts.
- * Rodam em mvn test e falham o build se as regras forem violadas.
- * Principio: Architecture as Code — as regras de design sao testadas automaticamente,
- * nao apenas documentadas. Previne regressoes arquiteturais futuras.
+ * Testes ArchUnit validando o isolamento entre Bounded Contexts.
+ * Principio: Architecture as Code — regras de design testadas automaticamente.
  */
 @Tag("architecture")
 class BoundedContextArchTest {
@@ -22,52 +20,69 @@ class BoundedContextArchTest {
 
     @BeforeAll
     static void loadClasses() {
+        // Importa apenas classes de produção — exclui testes de integração
         classes = new ClassFileImporter()
-                .importPackages("br.com.meli.orders");
+                .importPath("target/classes");
     }
 
     @Test
-    void orderContextMustNotDependOnBillingContext() {
-        // SOLUÇÃO: o contexto de orders (domain.order) nao deve importar diretamente
-        // tipos do contexto de billing (domain.billing).
-        // A comunicacao ocorre apenas via ACL em application.acl.
+    void orderDomainMustNotDependOnBillingDomain() {
+        // O domínio de order não importa tipos do domínio de billing diretamente.
+        // A comunicação ocorre via ACL em billing.application.acl.
         ArchRule rule = noClasses()
-                .that().resideInAPackage("..domain.order..")
+                .that().resideInAPackage("..order.domain..")
                 .should().dependOnClassesThat()
-                .resideInAPackage("..domain.billing..")
-                .because("O contexto de Order nao deve depender diretamente do contexto de Billing. " +
-                         "Use eventos de dominio (OrderPaid) e a Anti-Corruption Layer (application.acl).");
-
+                .resideInAPackage("..billing.domain..")
+                .because("O contexto de Order não deve depender diretamente do contexto de Billing. " +
+                         "Use o BillingPaymentTranslator (ACL) e BillingPort para comunicação.");
         rule.check(classes);
     }
 
     @Test
-    void aclIsTheOnlyBridgeBetweenOrderAndBillingContexts() {
-        // SOLUÇÃO: fora do ACL, nenhuma classe de application deve depender de domain.billing
-        // exceto as que estao explicitamente no pacote acl.
+    void aclIsTheOnlyBridgeBetweenOrderApplicationAndBillingDomain() {
+        // Fora do ACL, nenhuma classe de order.application pode depender de billing.domain
         ArchRule rule = noClasses()
-                .that().resideInAPackage("..application..")
-                .and().resideOutsideOfPackage("..application.acl..")
+                .that().resideInAPackage("..order.application..")
+                .and().resideOutsideOfPackage("..billing.application.acl..")
                 .should().dependOnClassesThat()
-                .resideInAPackage("..domain.billing..")
-                .because("Apenas a Anti-Corruption Layer (application.acl) deve conhecer " +
-                         "tipos do contexto de Billing. Use BillingPaymentTranslator para traducoes.");
-
+                .resideInAPackage("..billing.domain..")
+                .because("Apenas a Anti-Corruption Layer (billing.application.acl) deve conhecer " +
+                         "tipos do contexto de Billing. Use BillingPaymentTranslator para traduções.");
         rule.check(classes);
     }
 
     @Test
-    void domainOrderMustNotDependOnInfrastructure() {
-        // SOLUÇÃO: o dominio de orders nao deve depender de infraestrutura.
-        // Principio: Dependency Rule — dependencias apontam para dentro (em direcao ao dominio).
+    void orderDomainMustNotDependOnInfrastructure() {
         ArchRule rule = noClasses()
-                .that().resideInAPackage("..domain.order..")
+                .that().resideInAPackage("..order.domain..")
                 .should().dependOnClassesThat()
                 .resideInAPackage("..infrastructure..")
-                .because("O dominio nao deve conhecer detalhes de infraestrutura. " +
-                         "Use portas de saida (ports/out) para inverter a dependencia.");
+                .because("O domínio não deve conhecer detalhes de infraestrutura. " +
+                         "Use portas de saída (ports/out) para inverter a dependência.");
+        rule.check(classes);
+    }
 
+    @Test
+    void orderApplicationMustCommunicateWithBillingOnlyThroughPort() {
+        // order.application.saga só pode importar BillingPort (interface), não BillingHttpAdapter
+        ArchRule rule = noClasses()
+                .that().resideInAPackage("..order.application..")
+                .should().dependOnClassesThat()
+                .resideInAPackage("..billing.infrastructure..")
+                .because("Casos de uso do contexto de Order devem depender apenas de BillingPort " +
+                         "(interface em billing.application.port.out), nunca de BillingHttpAdapter.");
+        rule.check(classes);
+    }
+
+    @Test
+    void useCasesMustNotHaveSpringAnnotations() {
+        // Use cases são POJOs puros — Spring não entra na camada de application
+        ArchRule rule = noClasses()
+                .that().resideInAPackage("..order.application..")
+                .and().resideOutsideOfPackage("..order.application.port..")
+                .should().dependOnClassesThat()
+                .resideInAPackage("org.springframework.stereotype..")
+                .because("Casos de uso são POJOs puros. Use @Bean em UseCaseConfig para registrá-los.");
         rule.check(classes);
     }
 }
-

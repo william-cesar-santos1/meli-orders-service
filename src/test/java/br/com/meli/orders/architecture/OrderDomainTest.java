@@ -1,9 +1,9 @@
 package br.com.meli.orders.architecture;
 
-import br.com.meli.orders.domain.Order;
-import br.com.meli.orders.domain.OrderItem;
-import br.com.meli.orders.domain.OrderStatus;
-import br.com.meli.orders.domain.order.events.OrderPaid;
+import br.com.meli.orders.order.domain.Order;
+import br.com.meli.orders.order.domain.OrderItem;
+import br.com.meli.orders.order.domain.OrderStatus;
+import br.com.meli.orders.order.domain.events.OrderPaid;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -13,11 +13,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * SOLUÇÃO: testes de dominio para invariantes do agregado Order.
- * Sem dependencia de Spring ou infra — POJO puro. Rapidos e deterministas.
- * Principio: domain model testado de forma isolada, sem framework.
- */
 @Tag("unit")
 class OrderDomainTest {
 
@@ -37,19 +32,16 @@ class OrderDomainTest {
 
     @Test
     void shouldNotContainPaymentStatusField() {
-        // SOLUÇÃO: valida que o agregado Order nao tem campo paymentStatus.
-        // Garante que o contexto de billing nao vazou para o contexto de orders.
         var fields = Order.class.getDeclaredFields();
         for (var field : fields) {
             assertThat(field.getType().getName())
-                    .as("Order nao deve ter campo do tipo PaymentStatus — viola Bounded Contexts")
+                    .as("Order não deve ter campo do tipo PaymentStatus — viola Bounded Contexts")
                     .doesNotContain("PaymentStatus");
         }
     }
 
     @Test
     void shouldPublishOrderPaidEventWhenMarkedAsPaid() {
-        // SOLUÇÃO: o agregado publica evento de dominio em vez de mutar estado de billing.
         Order order = new Order(1L, "customer-1", List.of(), OrderStatus.CREATED,
                 new BigDecimal("100.00"), Instant.now());
 
@@ -75,4 +67,3 @@ class OrderDomainTest {
         assertThat(cancelled.status()).isEqualTo(OrderStatus.CANCELLED);
     }
 }
-

@@ -9,10 +9,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableScheduling
 @EnableJpaRepositories(basePackages = {
-        "br.com.meli.orders.infrastructure.jpa",
-        "br.com.meli.orders.infrastructure.outbox"
+        "br.com.meli.orders.order.infrastructure.jpa",
+        "br.com.meli.orders.order.infrastructure.outbox"
 })
-@EnableElasticsearchRepositories(basePackages = "br.com.meli.orders.infrastructure.search")
+@EnableElasticsearchRepositories(basePackages = "br.com.meli.orders.order.infrastructure.search")
 public class MeliOrdersApplication {
 
     public static void main(String[] args) {
