@@ -1,7 +1,6 @@
 package br.com.meli.orders.order.infrastructure.jpa;
 
 import br.com.meli.orders.order.application.port.out.FindOrderPort;
-import br.com.meli.orders.order.application.port.out.OrderRepositoryPort;
 import br.com.meli.orders.order.application.port.out.SaveOrderPort;
 import br.com.meli.orders.order.domain.Order;
 import br.com.meli.orders.order.domain.OrderStatus;
@@ -16,7 +15,7 @@ import java.util.Optional;
 // Spring injeta este adapter em qualquer caso de uso que declare SaveOrderPort ou FindOrderPort.
 // Principio: Adapter Pattern + Dependency Inversion.
 @Component
-public class OrderJpaAdapter implements OrderRepositoryPort, SaveOrderPort, FindOrderPort {
+public class OrderJpaAdapter implements SaveOrderPort, FindOrderPort {
 
     private final OrderRepository jpaRepository;
 

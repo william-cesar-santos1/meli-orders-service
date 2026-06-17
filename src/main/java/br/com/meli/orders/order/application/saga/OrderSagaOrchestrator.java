@@ -5,7 +5,7 @@ import br.com.meli.orders.billing.application.port.out.BillingPort;
 import br.com.meli.orders.billing.domain.PaymentStatus;
 import br.com.meli.orders.order.application.CreateOrderUseCase;
 import br.com.meli.orders.order.application.PlaceOrderCommand;
-import br.com.meli.orders.order.application.port.out.OrderRepositoryPort;
+import br.com.meli.orders.order.application.port.out.SaveOrderPort;
 import br.com.meli.orders.order.domain.Order;
 import br.com.meli.orders.order.domain.OrderStatus;
 import org.slf4j.Logger;
@@ -30,16 +30,16 @@ public class OrderSagaOrchestrator {
 
     private final CreateOrderUseCase createOrderUseCase;
     private final BillingPort billingPort;
-    private final OrderRepositoryPort orderRepository;
+    private final SaveOrderPort saveOrderPort;
     private final BillingPaymentTranslator billingTranslator;
 
     public OrderSagaOrchestrator(CreateOrderUseCase createOrderUseCase,
                                   BillingPort billingPort,
-                                  OrderRepositoryPort orderRepository,
+                                 SaveOrderPort saveOrderPort,
                                   BillingPaymentTranslator billingTranslator) {
         this.createOrderUseCase = createOrderUseCase;
         this.billingPort = billingPort;
-        this.orderRepository = orderRepository;
+        this.saveOrderPort = saveOrderPort;
         this.billingTranslator = billingTranslator;
     }
 
@@ -65,7 +65,7 @@ public class OrderSagaOrchestrator {
             if (OrderStatus.PAID.equals(targetStatus)) {
                 // Caminho feliz: PaymentConfirmed -> PAID
                 log.info("Saga: PaymentConfirmed orderId={} -> PAID", order.id());
-                return orderRepository.updateStatus(order.id(), OrderStatus.PAID);
+                return saveOrderPort.updateStatus(order.id(), OrderStatus.PAID);
             } else {
                 // Caminho de falha: PaymentFailed -> compensar (cancelar pedido)
                 return compensate(order, "PaymentFailed: billingStatus=" + paymentResult);
@@ -84,7 +84,7 @@ public class OrderSagaOrchestrator {
      */
     private Order compensate(Order order, String reason) {
         log.warn("Saga: compensação acionada orderId={} motivo={}", order.id(), reason);
-        Order cancelled = orderRepository.updateStatus(order.id(), OrderStatus.CANCELLED);
+        Order cancelled = saveOrderPort.updateStatus(order.id(), OrderStatus.CANCELLED);
         log.info("Saga: pedido cancelado orderId={} status={}", order.id(), cancelled.status());
         return cancelled;
     }

@@ -1,26 +1,19 @@
 package br.com.meli.orders.order.infrastructure.jpa;
 
-import br.com.meli.orders.order.application.port.out.InventoryRepositoryPort;
+import br.com.meli.orders.order.application.port.out.FindInventoryPort;
+import br.com.meli.orders.order.application.port.out.SaveInventoryPort;
 import br.com.meli.orders.order.domain.InventoryItem;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
 @Component
-public class InventoryJpaAdapter implements InventoryRepositoryPort {
+public class SaveInventoryJpaAdapter implements SaveInventoryPort, FindInventoryPort {
 
     private final InventoryRepository jpaRepository;
 
-    public InventoryJpaAdapter(InventoryRepository jpaRepository) {
+    public SaveInventoryJpaAdapter(InventoryRepository jpaRepository) {
         this.jpaRepository = jpaRepository;
-    }
-
-    @Override
-    // PROBLEMA: sem lock, múltiplas transações podem ler o mesmo registro simultaneamente.
-    // Cada uma lê quantity = 1, cada uma grava quantity = 0 — overselling silencioso.
-    public Optional<InventoryItem> findByProductId(String productId) {
-        return jpaRepository.findByProductId(productId)
-                .map(e -> new InventoryItem(e.getProductId(), e.getName(), e.getQuantity()));
     }
 
     @Override

@@ -1,6 +1,6 @@
 package br.com.meli.orders.order.application;
 
-import br.com.meli.orders.order.application.port.out.OrderRepositoryPort;
+import br.com.meli.orders.order.application.port.out.FindOrderPort;
 import br.com.meli.orders.order.domain.Order;
 
 import java.util.List;
@@ -11,13 +11,13 @@ import java.util.List;
  */
 public class ListOrdersByCustomerUseCase {
 
-    private final OrderRepositoryPort orderRepository;
+    private final FindOrderPort findOrderPort;
 
-    public ListOrdersByCustomerUseCase(OrderRepositoryPort orderRepository) {
-        this.orderRepository = orderRepository;
+    public ListOrdersByCustomerUseCase(FindOrderPort findOrderPort) {
+        this.findOrderPort = findOrderPort;
     }
 
     public List<Order> execute(String customerId) {
-        return orderRepository.findByCustomerId(customerId);
+        return findOrderPort.findByCustomerId(customerId);
     }
 }

@@ -1,7 +1,8 @@
 package br.com.meli.orders.order.application;
 
 import br.com.meli.orders.order.application.port.out.CatalogPort;
-import br.com.meli.orders.order.application.port.out.OrderRepositoryPort;
+import br.com.meli.orders.order.application.port.out.FindOrderPort;
+import br.com.meli.orders.order.application.port.out.SaveOrderPort;
 import br.com.meli.orders.order.application.port.out.TransactionPort;
 import br.com.meli.orders.order.domain.Order;
 import br.com.meli.orders.order.domain.OrderItem;
@@ -19,14 +20,18 @@ import java.util.List;
  */
 public class AddItemToOrderUseCase {
 
-    private final OrderRepositoryPort orderRepository;
+    private final FindOrderPort findOrderPort;
+    private final SaveOrderPort saveOrderPort;
     private final CatalogPort catalogPort;
     private final TransactionPort transactionPort;
 
-    public AddItemToOrderUseCase(OrderRepositoryPort orderRepository,
-                                  CatalogPort catalogPort,
-                                  TransactionPort transactionPort) {
-        this.orderRepository = orderRepository;
+    public AddItemToOrderUseCase(
+            FindOrderPort findOrderPort,
+            SaveOrderPort saveOrderPort,
+            CatalogPort catalogPort,
+            TransactionPort transactionPort) {
+        this.findOrderPort = findOrderPort;
+        this.saveOrderPort = saveOrderPort;
         this.catalogPort = catalogPort;
         this.transactionPort = transactionPort;
     }
@@ -38,12 +43,12 @@ public class AddItemToOrderUseCase {
             throw new ProductUnavailableException(productId);
         }
         return transactionPort.execute(() -> {
-            Order order = orderRepository.findById(orderId)
+            Order order = findOrderPort.findById(orderId)
                     .orElseThrow(() -> new OrderNotFoundException(orderId));
             OrderItem newItem = new OrderItem(null, productId, quantity, BigDecimal.ZERO, product.name());
             List<OrderItem> updated = new ArrayList<>(order.items());
             updated.add(newItem);
-            return orderRepository.save(
+            return saveOrderPort.save(
                     new Order(order.id(), order.customerId(), updated,
                             order.status(), order.totalAmount(), order.createdAt()));
         });

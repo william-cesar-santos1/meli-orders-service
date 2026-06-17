@@ -1,8 +1,7 @@
 package br.com.meli.orders.order.application.saga;
 
 import br.com.meli.orders.order.application.PlaceOrderCommand;
-import br.com.meli.orders.order.application.port.out.OrderEventPort;
-import br.com.meli.orders.order.application.port.out.OrderRepositoryPort;
+import br.com.meli.orders.order.application.port.out.FindOrderPort;
 import br.com.meli.orders.order.domain.Order;
 import br.com.meli.orders.order.domain.OrderStatus;
 import br.com.meli.orders.order.infrastructure.jpa.InventoryEntity;
@@ -18,6 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Teste de integração end-to-end do fluxo de pagamento via Saga.
  * WireMock simula o billing service real (HTTP) — sem mocks de porta.
  * Valida o fluxo de compensação em cenários de sucesso e falha.
- *
+ * <p>
  * Contexto de billing representado aqui apenas como adapter HTTP simulado,
  * conforme requisito: "O billing deve acontecer de forma simulada com o WireMock."
  */
@@ -54,9 +54,6 @@ class BillingServiceWireMockIT {
     @MockBean
     OrderSearchRepository orderSearchRepository;
 
-    @MockBean
-    OrderEventPort orderEventPort;
-
     @DynamicPropertySource
     static void configureInfra(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -69,9 +66,12 @@ class BillingServiceWireMockIT {
         registry.add("resilience4j.retry.instances.billing.max-attempts", () -> "1");
     }
 
-    @Autowired private OrderSagaOrchestrator sagaOrchestrator;
-    @Autowired private OrderRepositoryPort orderRepository;
-    @Autowired private InventoryRepository inventoryRepository;
+    @Autowired
+    private OrderSagaOrchestrator sagaOrchestrator;
+    @Autowired
+    private FindOrderPort findOrderPort;
+    @Autowired
+    private InventoryRepository inventoryRepository;
 
     @BeforeEach
     void setup() {
@@ -79,6 +79,7 @@ class BillingServiceWireMockIT {
     }
 
     @Test
+    @Transactional
     void whenBillingReturnsCapture_orderShouldBePaid() {
         // WireMock simula billing service retornando CAPTURED (pagamento aprovado)
         wireMock.stubFor(post(urlEqualTo("/payments/charge"))
@@ -95,11 +96,12 @@ class BillingServiceWireMockIT {
 
         // Compensação NÃO acionada — pedido confirmado como PAID
         assertThat(result.status()).isEqualTo(OrderStatus.PAID);
-        Order persisted = orderRepository.findById(result.id()).orElseThrow();
+        Order persisted = findOrderPort.findById(result.id()).orElseThrow();
         assertThat(persisted.status()).isEqualTo(OrderStatus.PAID);
     }
 
     @Test
+    @Transactional
     void whenBillingReturnsFailed_orderShouldBeCancelledViaCompensation() {
         // WireMock simula billing service retornando FAILED (pagamento recusado)
         wireMock.stubFor(post(urlEqualTo("/payments/charge"))
@@ -118,7 +120,7 @@ class BillingServiceWireMockIT {
         assertThat(result.status())
                 .as("Pedido deve ser CANCELLED quando billing recusa — Saga compensou corretamente")
                 .isEqualTo(OrderStatus.CANCELLED);
-        Order persisted = orderRepository.findById(result.id()).orElseThrow();
+        Order persisted = findOrderPort.findById(result.id()).orElseThrow();
         assertThat(persisted.status()).isEqualTo(OrderStatus.CANCELLED);
     }
 

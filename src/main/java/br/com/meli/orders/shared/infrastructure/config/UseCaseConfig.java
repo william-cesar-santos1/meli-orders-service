@@ -23,44 +23,45 @@ public class UseCaseConfig {
 
     @Bean
     public CreateOrderUseCase createOrderUseCase(
-            OrderRepositoryPort orderRepository,
-            InventoryRepositoryPort inventoryRepository,
+            SaveOrderPort saveOrderPort,
+            FindInventoryPort findInventoryPort,
+            SaveInventoryPort saveInventoryPort,
             OutboxPort outboxPort,
-            OrderEventPort orderEventPort,
             TransactionPort transactionPort) {
-        return new CreateOrderUseCase(orderRepository, inventoryRepository, outboxPort, orderEventPort, transactionPort);
+        return new CreateOrderUseCase(saveOrderPort, findInventoryPort, saveInventoryPort, outboxPort, transactionPort);
     }
 
     @Bean
     public OrderSagaOrchestrator orderSagaOrchestrator(
             CreateOrderUseCase createOrderUseCase,
             BillingPort billingPort,
-            OrderRepositoryPort orderRepository,
+            SaveOrderPort saveOrderPort,
             BillingPaymentTranslator billingPaymentTranslator) {
-        return new OrderSagaOrchestrator(createOrderUseCase, billingPort, orderRepository, billingPaymentTranslator);
+        return new OrderSagaOrchestrator(createOrderUseCase, billingPort, saveOrderPort, billingPaymentTranslator);
     }
 
     @Bean
-    public PayOrderUseCase payOrderUseCase(OrderRepositoryPort orderRepository) {
-        return new PayOrderUseCase(orderRepository);
+    public PayOrderUseCase payOrderUseCase(FindOrderPort findOrderPort, SaveOrderPort saveOrderPort) {
+        return new PayOrderUseCase(findOrderPort, saveOrderPort);
     }
 
     @Bean
     public AddItemToOrderUseCase addItemToOrderUseCase(
-            OrderRepositoryPort orderRepository,
+            FindOrderPort findOrderPort,
+            SaveOrderPort saveOrderPort,
             CatalogPort catalogPort,
             TransactionPort transactionPort) {
-        return new AddItemToOrderUseCase(orderRepository, catalogPort, transactionPort);
+        return new AddItemToOrderUseCase(findOrderPort, saveOrderPort, catalogPort, transactionPort);
     }
 
     @Bean
-    public ApplyCouponUseCase applyCouponUseCase(OrderRepositoryPort orderRepository) {
-        return new ApplyCouponUseCase(orderRepository);
+    public ApplyCouponUseCase applyCouponUseCase(FindOrderPort findOrderPort) {
+        return new ApplyCouponUseCase(findOrderPort);
     }
 
     @Bean
-    public ListOrdersByCustomerUseCase listOrdersByCustomerUseCase(OrderRepositoryPort orderRepository) {
-        return new ListOrdersByCustomerUseCase(orderRepository);
+    public ListOrdersByCustomerUseCase listOrdersByCustomerUseCase(FindOrderPort findOrderPort) {
+        return new ListOrdersByCustomerUseCase(findOrderPort);
     }
 
     @Bean

@@ -1,12 +1,12 @@
 package br.com.meli.orders.order.application;
 
-import br.com.meli.orders.order.application.port.out.OrderEventPort;
-import br.com.meli.orders.order.application.port.out.OrderRepositoryPort;
 import br.com.meli.orders.order.domain.exceptions.OutOfStockException;
 import br.com.meli.orders.order.infrastructure.jpa.InventoryEntity;
 import br.com.meli.orders.order.infrastructure.jpa.InventoryRepository;
 import br.com.meli.orders.order.infrastructure.search.OrderSearchRepository;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -30,7 +30,7 @@ class CreateOrderUseCaseIT {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
-        .withReuse(true);
+            .withReuse(true);
 
     @DynamicPropertySource
     static void configureDataSource(DynamicPropertyRegistry registry) {
@@ -39,10 +39,12 @@ class CreateOrderUseCaseIT {
         registry.add("spring.datasource.password", postgres::getPassword);
     }
 
-    @Autowired private CreateOrderUseCase createOrderUseCase;
-    @Autowired private InventoryRepository inventoryRepository;
-    @MockBean OrderSearchRepository orderSearchRepository;
-    @MockBean OrderEventPort orderEventPort;
+    @Autowired
+    private CreateOrderUseCase createOrderUseCase;
+    @Autowired
+    private InventoryRepository inventoryRepository;
+    @MockBean
+    OrderSearchRepository orderSearchRepository;
 
     @BeforeEach
     void seedInventory() {
@@ -53,8 +55,8 @@ class CreateOrderUseCaseIT {
     void shouldCreateOrderAndReturnPersistedId() {
         inventoryRepository.save(new InventoryEntity("prod-tenis", 10));
         PlaceOrderCommand command = new PlaceOrderCommand(
-            "customer-alice",
-            List.of(new PlaceOrderCommand.Item("prod-tenis", 1, new BigDecimal("350.00"), "Tênis Nike"))
+                "customer-alice",
+                List.of(new PlaceOrderCommand.Item("prod-tenis", 1, new BigDecimal("350.00"), "Tênis Nike"))
         );
         var order = createOrderUseCase.execute(command);
         assertThat(order.id()).isNotNull().isPositive();
@@ -63,22 +65,36 @@ class CreateOrderUseCaseIT {
     @Test
     void shouldPreventDuplicateActiveOrderForSameCustomer() {
         PlaceOrderCommand command = new PlaceOrderCommand(
-            "customer-concurrent",
-            List.of(new PlaceOrderCommand.Item("prod-limited", 1, new BigDecimal("100.00"), "Produto Limitado"))
+                "customer-concurrent",
+                List.of(new PlaceOrderCommand.Item("prod-limited", 1, new BigDecimal("100.00"), "Produto Limitado"))
         );
 
         CompletableFuture<Boolean> first = CompletableFuture.supplyAsync(() -> {
-            try { createOrderUseCase.execute(command); return true; }
-            catch (OutOfStockException e) { return false; }
+            try {
+                createOrderUseCase.execute(command);
+                return true;
+            } catch (OutOfStockException e) {
+                return false;
+            }
         });
         CompletableFuture<Boolean> second = CompletableFuture.supplyAsync(() -> {
-            try { createOrderUseCase.execute(command); return true; }
-            catch (OutOfStockException e) { return false; }
+            try {
+                createOrderUseCase.execute(command);
+                return true;
+            } catch (OutOfStockException e) {
+                return false;
+            }
         });
 
         long successCount = Stream.of(first, second)
-            .mapToLong(f -> { try { return f.get() ? 1L : 0L; } catch (Exception e) { return 0L; } })
-            .sum();
+                .mapToLong(f -> {
+                    try {
+                        return f.get() ? 1L : 0L;
+                    } catch (Exception e) {
+                        return 0L;
+                    }
+                })
+                .sum();
 
         assertThat(successCount).isEqualTo(1);
     }

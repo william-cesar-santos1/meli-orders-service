@@ -8,7 +8,9 @@ import br.com.meli.orders.order.domain.OrderStatus;
 // O caso de uso depende apenas desta interface — nunca de implementacoes concretas.
 // Principio: Dependency Inversion — dominio define a interface, infraestrutura implementa.
 public interface SaveOrderPort {
+
     Order save(Order order);
+
     Order updateStatus(Long id, OrderStatus status);
 }
 

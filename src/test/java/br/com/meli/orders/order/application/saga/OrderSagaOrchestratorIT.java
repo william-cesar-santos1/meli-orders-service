@@ -3,8 +3,7 @@ package br.com.meli.orders.order.application.saga;
 import br.com.meli.orders.billing.application.port.out.BillingPort;
 import br.com.meli.orders.billing.domain.PaymentStatus;
 import br.com.meli.orders.order.application.PlaceOrderCommand;
-import br.com.meli.orders.order.application.port.out.OrderEventPort;
-import br.com.meli.orders.order.application.port.out.OrderRepositoryPort;
+import br.com.meli.orders.order.application.port.out.FindOrderPort;
 import br.com.meli.orders.order.domain.Order;
 import br.com.meli.orders.order.domain.OrderStatus;
 import br.com.meli.orders.order.infrastructure.jpa.InventoryEntity;
@@ -18,6 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -50,13 +50,17 @@ class OrderSagaOrchestratorIT {
         registry.add("spring.datasource.password", postgres::getPassword);
     }
 
-    @Autowired private OrderSagaOrchestrator sagaOrchestrator;
-    @Autowired private OrderRepositoryPort orderRepository;
-    @Autowired private InventoryRepository inventoryRepository;
+    @Autowired
+    private OrderSagaOrchestrator sagaOrchestrator;
+    @Autowired
+    private FindOrderPort findOrderPort;
+    @Autowired
+    private InventoryRepository inventoryRepository;
 
-    @MockBean OrderSearchRepository orderSearchRepository;
-    @MockBean OrderEventPort orderEventPort;
-    @MockBean BillingPort billingPort;
+    @MockBean
+    OrderSearchRepository orderSearchRepository;
+    @MockBean
+    BillingPort billingPort;
 
     @BeforeEach
     void setup() {
@@ -64,6 +68,7 @@ class OrderSagaOrchestratorIT {
     }
 
     @Test
+    @Transactional
     void whenPaymentSucceeds_orderShouldBePaid() {
         when(billingPort.charge(any(), any())).thenReturn(PaymentStatus.CAPTURED);
 
@@ -74,11 +79,12 @@ class OrderSagaOrchestratorIT {
         Order result = sagaOrchestrator.execute(command);
 
         assertThat(result.status()).isEqualTo(OrderStatus.PAID);
-        Order persisted = orderRepository.findById(result.id()).orElseThrow();
+        Order persisted = findOrderPort.findById(result.id()).orElseThrow();
         assertThat(persisted.status()).isEqualTo(OrderStatus.PAID);
     }
 
     @Test
+    @Transactional
     void whenBillingFails_orderShouldBeCancelledNotOrphaned() {
         when(billingPort.charge(any(), any())).thenReturn(PaymentStatus.FAILED);
 
@@ -89,7 +95,7 @@ class OrderSagaOrchestratorIT {
         Order result = sagaOrchestrator.execute(command);
 
         assertThat(result.status()).isEqualTo(OrderStatus.CANCELLED);
-        Order persisted = orderRepository.findById(result.id()).orElseThrow();
+        Order persisted = findOrderPort.findById(result.id()).orElseThrow();
         assertThat(persisted.status())
                 .as("Pedido deve ser CANCELLED quando billing falha — Saga compensou corretamente")
                 .isEqualTo(OrderStatus.CANCELLED);

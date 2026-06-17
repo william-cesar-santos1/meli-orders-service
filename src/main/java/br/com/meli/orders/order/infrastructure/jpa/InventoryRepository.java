@@ -10,8 +10,6 @@ import java.util.Optional;
 
 public interface InventoryRepository extends JpaRepository<InventoryEntity, String> {
 
-    Optional<InventoryEntity> findByProductId(String productId);
-
     // SOLUCAO (Bloco 2 — pessimistic locking): PESSIMISTIC_WRITE gera SELECT FOR UPDATE.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT i FROM InventoryEntity i WHERE i.productId = :productId")

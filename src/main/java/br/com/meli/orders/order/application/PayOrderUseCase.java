@@ -1,6 +1,7 @@
 package br.com.meli.orders.order.application;
 
-import br.com.meli.orders.order.application.port.out.OrderRepositoryPort;
+import br.com.meli.orders.order.application.port.out.FindOrderPort;
+import br.com.meli.orders.order.application.port.out.SaveOrderPort;
 import br.com.meli.orders.order.domain.Order;
 import br.com.meli.orders.order.domain.OrderStatus;
 import br.com.meli.orders.order.domain.exceptions.OrderNotFoundException;
@@ -11,15 +12,20 @@ import br.com.meli.orders.order.domain.exceptions.OrderNotFoundException;
  */
 public class PayOrderUseCase {
 
-    private final OrderRepositoryPort orderRepository;
+    private final FindOrderPort findOrderPort;
+    private final SaveOrderPort saveOrderPort;
 
-    public PayOrderUseCase(OrderRepositoryPort orderRepository) {
-        this.orderRepository = orderRepository;
+    public PayOrderUseCase(
+            FindOrderPort findOrderPort,
+            SaveOrderPort saveOrderPort
+    ) {
+        this.findOrderPort = findOrderPort;
+        this.saveOrderPort = saveOrderPort;
     }
 
     public Order execute(Long orderId) {
-        orderRepository.findById(orderId)
+        findOrderPort.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
-        return orderRepository.updateStatus(orderId, OrderStatus.PAID);
+        return saveOrderPort.updateStatus(orderId, OrderStatus.PAID);
     }
 }
