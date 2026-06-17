@@ -10,6 +10,7 @@ import br.com.meli.order.application.saga.OrderSagaOrchestrator;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -39,12 +40,16 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<OrderResponse> create(@RequestBody @Valid CreateOrderRequest request) {
-        // PROBLEMA: logs textuais sem contexto — impossivel filtrar por usuario/transacao.
-        // Sem CorrelationID, logs de multiplos servicos nao se conectam; RCA exige grep manual.
+        // SOLUÇÃO: logs JSON com MDC — cada log carrega correlationId automaticamente.
+        // logger.info emitira com "correlationId":"...", "timestamp":"...", tudo em JSON.
+        MDC.put("customerId", request.getCustomerId());
         logger.info("Creating order");
+        
         PlaceOrderCommand command = toCommand(request);
         OrderResponse response = OrderResponse.from(sagaOrchestrator.execute(command));
+        
         logger.info("Order created successfully");
+        MDC.remove("customerId");
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
