@@ -42,7 +42,7 @@ public class OrderController {
     public ResponseEntity<OrderResponse> create(@RequestBody @Valid CreateOrderRequest request) {
         // SOLUÇÃO: logs JSON com MDC — cada log carrega correlationId automaticamente.
         // logger.info emitira com "correlationId":"...", "timestamp":"...", tudo em JSON.
-        MDC.put("customerId", request.getCustomerId());
+        MDC.put("customerId", request.customerId());
         logger.info("Creating order");
         
         PlaceOrderCommand command = toCommand(request);
