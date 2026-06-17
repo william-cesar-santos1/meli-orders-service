@@ -153,6 +153,15 @@
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-otlp</artifactId>
         </dependency>
+
+        <!-- SOLUCAO (Rastreabilidade — spans de JDBC): instrumenta cada query SQL
+             como span filho do trace atual. Sem esta lib, operacoes de banco
+             sao invisíveis no Jaeger. -->
+        <dependency>
+            <groupId>net.ttddyy.observation</groupId>
+            <artifactId>datasource-micrometer-spring-boot</artifactId>
+            <version>1.0.6</version>
+        </dependency>
     </dependencies>
 
     <build>

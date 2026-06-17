@@ -62,6 +62,9 @@ management:
     tags:
       app: meli-orders-service
       environment: local
+      # SOLUCAO: inclui o hostname do container nas metricas para identificar
+      # cada replica individualmente nos dashboards do Grafana.
+      hostname: ${HOSTNAME:unknown}
     # SOLUCAO (Observabilidade — histograma de latência): habilita os buckets de histograma
     # para http.server.requests. Sem isso, histogram_quantile() no Prometheus retorna NaN
     # e os painéis de p99/p95/p50 do Grafana ficam vazios.

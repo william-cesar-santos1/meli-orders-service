@@ -1,21 +1,48 @@
 {
   "uid": "system-overview",
   "title": "Sistema — CPU · Memória · Threads",
-  "tags": ["meli-orders", "system"],
+  "tags": [
+    "meli-orders",
+    "system"
+  ],
   "timezone": "browser",
   "refresh": "5s",
   "schemaVersion": 38,
-  "time": { "from": "now-5m", "to": "now" },
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
   "timepicker": {
-    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"],
-    "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
   },
   "panels": [
     {
       "id": 1,
       "title": "CPU — Processo vs Sistema (%)",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
@@ -24,22 +51,34 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.6 },
-              { "color": "red", "value": 0.85 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.6
+              },
+              {
+                "color": "red",
+                "value": 0.85
+              }
             ]
           },
-          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
         }
       },
       "targets": [
         {
-          "expr": "process_cpu_usage{job=\"meli-orders\"}",
+          "expr": "avg(process_cpu_usage{job=\"meli-orders\",instance=~\"$instance\"})",
           "legendFormat": "Processo (JVM)",
           "refId": "A"
         },
         {
-          "expr": "system_cpu_usage{job=\"meli-orders\"}",
+          "expr": "avg(system_cpu_usage{job=\"meli-orders\",instance=~\"$instance\"})",
           "legendFormat": "Sistema (host)",
           "refId": "B"
         }
@@ -50,26 +89,34 @@
       "id": 2,
       "title": "Memória Heap — Usada vs Máxima",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
-          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
         }
       },
       "targets": [
         {
-          "expr": "sum(jvm_memory_used_bytes{job=\"meli-orders\",area=\"heap\"})",
+          "expr": "sum(jvm_memory_used_bytes{job=\"meli-orders\",instance=~\"$instance\",area=\"heap\"})",
           "legendFormat": "Heap Usada",
           "refId": "A"
         },
         {
-          "expr": "sum(jvm_memory_max_bytes{job=\"meli-orders\",area=\"heap\"})",
+          "expr": "sum(jvm_memory_max_bytes{job=\"meli-orders\",instance=~\"$instance\",area=\"heap\"})",
           "legendFormat": "Heap Máxima",
           "refId": "B"
         },
         {
-          "expr": "sum(jvm_memory_committed_bytes{job=\"meli-orders\",area=\"heap\"})",
+          "expr": "sum(jvm_memory_committed_bytes{job=\"meli-orders\",instance=~\"$instance\",area=\"heap\"})",
           "legendFormat": "Heap Committed",
           "refId": "C"
         }
@@ -80,21 +127,29 @@
       "id": 3,
       "title": "Memória Non-Heap (Metaspace · Buffers)",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
-          "custom": { "lineWidth": 2, "fillOpacity": 8 }
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          }
         }
       },
       "targets": [
         {
-          "expr": "sum(jvm_memory_used_bytes{job=\"meli-orders\",area=\"nonheap\"})",
+          "expr": "sum(jvm_memory_used_bytes{job=\"meli-orders\",instance=~\"$instance\",area=\"nonheap\"})",
           "legendFormat": "Non-Heap Usada",
           "refId": "A"
         },
         {
-          "expr": "sum(jvm_memory_committed_bytes{job=\"meli-orders\",area=\"nonheap\"})",
+          "expr": "sum(jvm_memory_committed_bytes{job=\"meli-orders\",instance=~\"$instance\",area=\"nonheap\"})",
           "legendFormat": "Non-Heap Committed",
           "refId": "B"
         }
@@ -105,26 +160,34 @@
       "id": 4,
       "title": "Threads JVM",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "custom": { "lineWidth": 2, "fillOpacity": 8 }
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          }
         }
       },
       "targets": [
         {
-          "expr": "jvm_threads_live_threads{job=\"meli-orders\"}",
+          "expr": "sum(jvm_threads_live_threads{job=\"meli-orders\",instance=~\"$instance\"})",
           "legendFormat": "Threads Ativas",
           "refId": "A"
         },
         {
-          "expr": "jvm_threads_daemon_threads{job=\"meli-orders\"}",
+          "expr": "sum(jvm_threads_daemon_threads{job=\"meli-orders\",instance=~\"$instance\"})",
           "legendFormat": "Threads Daemon",
           "refId": "B"
         },
         {
-          "expr": "jvm_threads_peak_threads{job=\"meli-orders\"}",
+          "expr": "sum(jvm_threads_peak_threads{job=\"meli-orders\",instance=~\"$instance\"})",
           "legendFormat": "Pico de Threads",
           "refId": "C"
         }
@@ -135,16 +198,24 @@
       "id": 5,
       "title": "GC — Tempo Gasto (%)",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "custom": { "lineWidth": 2, "fillOpacity": 8 }
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          }
         }
       },
       "targets": [
         {
-          "expr": "rate(jvm_gc_pause_seconds_sum{job=\"meli-orders\"}[1m])",
+          "expr": "sum by (action, cause) (rate(jvm_gc_pause_seconds_sum{job=\"meli-orders\",instance=~\"$instance\"}[1m]))",
           "legendFormat": "{{action}} {{cause}}",
           "refId": "A"
         }
@@ -155,37 +226,63 @@
       "id": 6,
       "title": "Pool de Conexões HikariCP",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "custom": { "lineWidth": 2, "fillOpacity": 8 }
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          }
         }
       },
       "targets": [
         {
-          "expr": "hikaricp_connections_active{job=\"meli-orders\"}",
+          "expr": "sum(hikaricp_connections_active{job=\"meli-orders\",instance=~\"$instance\"})",
           "legendFormat": "Ativas",
           "refId": "A"
         },
         {
-          "expr": "hikaricp_connections_idle{job=\"meli-orders\"}",
+          "expr": "sum(hikaricp_connections_idle{job=\"meli-orders\",instance=~\"$instance\"})",
           "legendFormat": "Idle",
           "refId": "B"
         },
         {
-          "expr": "hikaricp_connections_pending{job=\"meli-orders\"}",
+          "expr": "sum(hikaricp_connections_pending{job=\"meli-orders\",instance=~\"$instance\"})",
           "legendFormat": "Aguardando",
           "refId": "C"
         },
         {
-          "expr": "hikaricp_connections_max{job=\"meli-orders\"}",
+          "expr": "sum(hikaricp_connections_max{job=\"meli-orders\",instance=~\"$instance\"})",
           "legendFormat": "Máximo",
           "refId": "D"
         }
       ],
       "datasource": "Prometheus"
     }
-  ]
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "label": "Replica",
+        "description": "Filtra por replica da aplicacao. 'All' exibe todas as replicas agregadas.",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(up{job=\"meli-orders\"}, instance)",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {},
+        "hide": 0
+      }
+    ]
+  }
 }
-

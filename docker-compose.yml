@@ -97,10 +97,15 @@ services:
   prometheus:
     image: prom/prometheus:v2.51.2
     container_name: meli-orders-prometheus
+    # SOLUCAO: o docker_sd_configs precisa ler o socket do Docker (/var/run/docker.sock).
+    # O container do Prometheus roda por padrao como nobody (uid 65534), que nao tem
+    # permissao no socket. Rodar como root (uid 0) resolve o "permission denied".
+    user: "0"
     ports:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
   grafana:
     image: grafana/grafana:10.4.2

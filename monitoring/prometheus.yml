@@ -3,8 +3,25 @@ global:
 
 scrape_configs:
   - job_name: meli-orders
-    static_configs:
-      - targets: ['host.docker.internal:8080']
+    # SOLUCAO: docker_sd_configs descobre automaticamente todas as replicas
+    # do servico meli-orders-app via socket do Docker, raspando cada uma
+    # individualmente em vez de passar pelo Nginx (que balancearia aleatoriamente).
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        filters:
+          # Filtra apenas os containers do servico meli-orders-app
+          - name: label
+            values: ['com.docker.compose.service=meli-orders-app']
+    relabel_configs:
+      # Substitui qualquer porta auto-descoberta pela porta real do actuator (8080)
+      - source_labels: [__address__]
+        regex: '([^:]+)(?::\d+)?'
+        replacement: '$1:8080'
+        target_label: __address__
+      # Define o label `instance` com o nome do container (ex: meli-orders-app-1)
+      - source_labels: [__meta_docker_container_name]
+        regex: '/(.+)'
+        target_label: instance
     metrics_path: /actuator/prometheus
 
 rule_files:
