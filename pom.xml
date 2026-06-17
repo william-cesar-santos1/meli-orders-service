@@ -157,6 +157,26 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
+
+        <!-- Aula 7: Spring Cloud Sleuth com OpenTelemetry para tracing distribuido. -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-sleuth</artifactId>
+            <version>3.3.4</version>
+        </dependency>
+
+        <!-- Aula 7: exportador OTLP — envia traces via gRPC para Jaeger/Tempo. -->
+        <dependency>
+            <groupId>io.opentelemetry.exporter</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+            <version>1.32.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.opentelemetry.instrumentation</groupId>
+            <artifactId>opentelemetry-instrumentation-api</artifactId>
+            <version>1.32.0</version>
+        </dependency>
     </dependencies>
 
     <build>

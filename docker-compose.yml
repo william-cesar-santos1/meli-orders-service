@@ -20,6 +20,7 @@ services:
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
       SERVICES_BILLING_URL: http://billing-wiremock:8080
+      SPRING_OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     depends_on:
       postgres:
         condition: service_healthy
@@ -27,6 +28,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
 
   postgres:
     image: postgres:16-alpine
@@ -118,6 +121,16 @@ services:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: meli-orders-jaeger
+    ports:
+      - "6831:6831/udp"  # Jaeger agent (Thrift/UDP)
+      - "16686:16686"    # Jaeger UI
+      - "14317:4317"     # OTLP receiver (gRPC)
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
 
 volumes:
   postgres_data:

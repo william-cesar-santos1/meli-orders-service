@@ -75,6 +75,23 @@ management:
     elasticsearch:
       enabled: false
 
+# Aula 7: Sleuth para tracing distribuido com OpenTelemetry.
+spring:
+  sleuth:
+    # SOLUÇÃO: usar OpenTelemetry como backend de tracing.
+    otel:
+      config:
+        trace_id_ratio_based: 1.0  # 100% de sampling para environment local.
+  
+  # Aula 7: Exportar traces via OTLP (OpenTelemetry Protocol).
+  otel:
+    exporter:
+      otlp:
+        # SOLUÇÃO: enviar traces para Jaeger via gRPC na porta 4317.
+        endpoint: http://localhost:4317
+        protocol: grpc
+        timeout: 10s
+
 services:
   catalog:
     url: http://localhost:8081
