@@ -5,6 +5,29 @@ version: '3.9'
 # Principio: infraestrutura como codigo — sem servicos desnecessarios no ambiente local.
 
 services:
+  meli-orders-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: meli-orders-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/orders_db
+      SPRING_DATASOURCE_USERNAME: orders
+      SPRING_DATASOURCE_PASSWORD: orders
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+      SERVICES_BILLING_URL: http://billing-wiremock:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   postgres:
     image: postgres:16-alpine
     container_name: meli-orders-postgres
@@ -27,33 +50,6 @@ services:
       test: ["CMD-SHELL", "pg_isready -U orders -d orders_db"]
       interval: 10s
       timeout: 5s
-      retries: 5
-
-  # SOLUÇÃO: Redpanda — broker Kafka-compatible leve para eventos de dominio (Saga, Outbox).
-  # Substitui qualquer necessidade de MongoDB para log de eventos.
-  # Kafka-compatible: producers/consumers Kafka funcionam sem mudanca.
-  redpanda:
-    image: redpandadata/redpanda:v23.3.18
-    container_name: meli-orders-redpanda
-    command:
-      - redpanda
-      - start
-      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
-      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
-      - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
-      - --advertise-pandaproxy-addr internal://redpanda:8082,external://localhost:18082
-      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
-      - --rpc-addr redpanda:33145
-      - --advertise-rpc-addr redpanda:33145
-      - --mode dev-container
-    ports:
-      - "19092:19092"
-      - "18082:18082"
-      - "18081:18081"
-    healthcheck:
-      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
-      interval: 15s
-      timeout: 10s
       retries: 5
 
   elasticsearch:
