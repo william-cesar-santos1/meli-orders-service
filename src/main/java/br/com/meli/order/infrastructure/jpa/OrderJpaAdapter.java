@@ -1,0 +1,52 @@
+package br.com.meli.order.infrastructure.jpa;
+
+import br.com.meli.order.application.port.out.FindOrderPort;
+import br.com.meli.order.application.port.out.SaveOrderPort;
+import br.com.meli.order.domain.exceptions.OrderNotFoundException;
+import br.com.meli.order.domain.order.Order;
+import br.com.meli.order.domain.order.OrderStatus;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Optional;
+
+// SOLUÇÃO: OrderJpaAdapter implementa os novos ports especificos (SaveOrderPort, FindOrderPort)
+// alem do OrderRepositoryPort existente (para compatibilidade).
+// Spring injeta este adapter em qualquer caso de uso que declare SaveOrderPort ou FindOrderPort.
+// Principio: Adapter Pattern + Dependency Inversion.
+@Component
+public class OrderJpaAdapter implements SaveOrderPort, FindOrderPort {
+
+    private final OrderRepository jpaRepository;
+
+    public OrderJpaAdapter(OrderRepository jpaRepository) {
+        this.jpaRepository = jpaRepository;
+    }
+
+    @Override
+    public Order save(Order order) {
+        OrderEntity entity = OrderEntity.from(order);
+        return jpaRepository.save(entity).toDomain();
+    }
+
+    @Override
+    public Order updateStatus(Long id, OrderStatus status) {
+        OrderEntity entity = jpaRepository.findById(id)
+                .orElseThrow(() -> new OrderNotFoundException(id));
+        entity.setStatus(status.name());
+        return jpaRepository.save(entity).toDomain();
+    }
+
+    @Override
+    public Optional<Order> findById(Long id) {
+        return jpaRepository.findById(id).map(OrderEntity::toDomain);
+    }
+
+    @Override
+    // SOLUÇÃO: usa JOIN FETCH para carregar pedido + itens em uma unica query SQL.
+    public List<Order> findByCustomerId(String customerId) {
+        return jpaRepository.findWithItemsByCustomer(customerId).stream()
+                .map(OrderEntity::toDomain)
+                .toList();
+    }
+}

@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>br.com.meli.orders</groupId>
+    <groupId>br.com.meli</groupId>
     <artifactId>meli-orders-service</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>

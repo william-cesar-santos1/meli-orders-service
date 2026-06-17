@@ -52,6 +52,10 @@ server:
 services:
   catalog:
     url: http://localhost:8081
+  # Serviço externo de Billing — simulado via WireMock em desenvolvimento local.
+  # Para ambiente local (fora do docker): http://localhost:8082
+  # Para ambiente docker-compose: http://billing-wiremock:8080
+  # O docker-compose expõe o WireMock na porta 8082 do host.
   billing:
     url: http://localhost:8082
 
