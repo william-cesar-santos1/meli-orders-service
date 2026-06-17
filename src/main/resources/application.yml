@@ -65,6 +65,15 @@ management:
     tags:
       app: meli-orders-service
       environment: local
+    # SOLUCAO (Observabilidade — histograma de latência): habilita os buckets de histograma
+    # para http.server.requests. Sem isso, histogram_quantile() no Prometheus retorna NaN
+    # e os painéis de p99/p95/p50 do Grafana ficam vazios.
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  health:
+    elasticsearch:
+      enabled: false
 
 services:
   catalog:
@@ -97,23 +106,4 @@ resilience4j:
         # Tenta ate 2 vezes antes de contar como falha definitiva
         max-attempts: 2
         wait-duration: 200ms
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,metrics,prometheus
-  metrics:
-    export:
-      prometheus:
-        enabled: true
-    # SOLUCAO (Observabilidade — histograma de latência): habilita os buckets de histograma
-    # para http.server.requests. Sem isso, histogram_quantile() no Prometheus retorna NaN
-    # e os painéis de p99/p95/p50 do Grafana ficam vazios.
-    distribution:
-      percentiles-histogram:
-        http.server.requests: true
-  health:
-    elasticsearch:
-      enabled: false
 
