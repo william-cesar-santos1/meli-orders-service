@@ -59,7 +59,7 @@ public class OrderController {
             OrderResponse response = OrderResponse.from(sagaOrchestrator.execute(command));
 
             // SOLUÇÃO: counter de sucesso.
-            meterRegistry.counter("orders.created", "customerId", request.getCustomerId()).increment();
+            meterRegistry.counter("orders.created", "customerId", request.customerId()).increment();
             logger.info("Order created successfully");
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
