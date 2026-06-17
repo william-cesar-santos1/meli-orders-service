@@ -5,8 +5,9 @@ import br.com.meli.order.api.dto.OrderResponse;
 import br.com.meli.order.application.ListOrdersByCustomerUseCase;
 import br.com.meli.order.application.PayOrderUseCase;
 import br.com.meli.order.application.PlaceOrderCommand;
-import br.com.meli.order.application.SearchOrdersUseCase;
 import br.com.meli.order.application.saga.OrderSagaOrchestrator;
+import io.micrometer.core.annotation.Timed;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,8 +15,6 @@ import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.annotation.Timed;
 
 import java.util.List;
 
@@ -27,18 +26,15 @@ public class OrderController {
 
     private final OrderSagaOrchestrator sagaOrchestrator;
     private final PayOrderUseCase payOrderUseCase;
-    private final SearchOrdersUseCase searchOrdersUseCase;
     private final ListOrdersByCustomerUseCase listOrdersByCustomerUseCase;
     private final MeterRegistry meterRegistry;
 
     public OrderController(OrderSagaOrchestrator sagaOrchestrator,
                            PayOrderUseCase payOrderUseCase,
-                           SearchOrdersUseCase searchOrdersUseCase,
                            ListOrdersByCustomerUseCase listOrdersByCustomerUseCase,
                            MeterRegistry meterRegistry) {
         this.sagaOrchestrator = sagaOrchestrator;
         this.payOrderUseCase = payOrderUseCase;
-        this.searchOrdersUseCase = searchOrdersUseCase;
         this.listOrdersByCustomerUseCase = listOrdersByCustomerUseCase;
         this.meterRegistry = meterRegistry;
     }
@@ -87,13 +83,6 @@ public class OrderController {
     @PatchMapping("/{id}/pay")
     public ResponseEntity<OrderResponse> pay(@PathVariable Long id) {
         return ResponseEntity.ok(OrderResponse.from(payOrderUseCase.execute(id)));
-    }
-
-    @GetMapping("/search")
-    public List<OrderResponse> search(@RequestParam String q) {
-        return searchOrdersUseCase.search(q).stream()
-                .map(OrderResponse::from)
-                .toList();
     }
 
     private PlaceOrderCommand toCommand(CreateOrderRequest request) {

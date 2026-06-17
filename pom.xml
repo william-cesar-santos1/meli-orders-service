@@ -52,16 +52,6 @@
             <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
-        <!-- NoSQL -->
-        <!-- SOLUÇÃO: spring-boot-starter-data-mongodb removido definitivamente.
-             O servico nao depende mais de MongoDB para nenhuma funcionalidade.
-             Toda persistencia transacional usa PostgreSQL + JPA.
-             Eventos sao publicados via Outbox Pattern (PostgreSQL). -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
-        </dependency>
-
         <!-- Cache / idempotência distribuída -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -105,12 +95,6 @@
             <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>elasticsearch</artifactId>
-            <scope>test</scope>
-        </dependency>
-
         <!-- Bloco 2: spring-boot-testcontainers e junit-jupiter integram Testcontainers com Spring Boot. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -168,13 +152,6 @@
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-otlp</artifactId>
-            <version>1.32.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.opentelemetry.instrumentation</groupId>
-            <artifactId>opentelemetry-instrumentation-api</artifactId>
-            <version>1.32.0</version>
         </dependency>
     </dependencies>
 

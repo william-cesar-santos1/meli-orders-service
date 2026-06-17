@@ -8,12 +8,10 @@ import { Counter, Rate, Trend } from 'k6/metrics';
 // ─── Métricas customizadas por cenário ──────────────────────────────────────
 const orderCreateErrors  = new Counter('order_create_errors');
 const orderListErrors    = new Counter('order_list_errors');
-const orderSearchErrors  = new Counter('order_search_errors');
 const orderPayErrors     = new Counter('order_pay_errors');
 
 const createDuration = new Trend('order_create_duration', true);
 const listDuration   = new Trend('order_list_duration',   true);
-const searchDuration = new Trend('order_search_duration', true);
 const payDuration    = new Trend('order_pay_duration',    true);
 
 // ─── Configuração de carga ───────────────────────────────────────────────────
@@ -42,18 +40,6 @@ export const options = {
             ],
             exec: 'listarPedidos',
         },
-        // Cenário 3 — Busca full-text (GET /orders/search?q=...)
-        // Simula a busca por produtos no histórico — exercita Elasticsearch.
-        buscar_pedidos: {
-            executor: 'ramping-vus',
-            startTime: '30s',
-            stages: [
-                { duration: '1m',  target: 10 },
-                { duration: '2m',  target: 10 },
-                { duration: '30s', target: 0  },
-            ],
-            exec: 'buscarPedidos',
-        },
         // Cenário 4 — Pagamento de pedidos (PATCH /orders/{id}/pay)
         // Simula clientes confirmando pagamento. Volume menor — pedidos precisam existir.
         pagar_pedidos: {
@@ -75,7 +61,6 @@ export const options = {
         // SLA por cenário
         'order_create_duration':              ['p(95)<300'],
         'order_list_duration':                ['p(95)<200'],
-        'order_search_duration':              ['p(95)<400'],
         'order_pay_duration':                 ['p(95)<300'],
 
         // Contadores de erro por cenário — zero tolerância em 5xx
@@ -171,38 +156,12 @@ export function listarPedidos() {
     sleep(0.05);
 }
 
-// ─── Cenário 3: Busca Full-Text ──────────────────────────────────────────────
-export function buscarPedidos() {
-    const term = SEARCH_TERMS[Math.floor(Math.random() * SEARCH_TERMS.length)];
-
-    group('GET /orders/search', () => {
-        const res = http.get(
-            `${BASE_URL}/orders/search?q=${term}`,
-            { headers: { 'Accept': 'application/json' } }
-        );
-
-        searchDuration.add(res.timings.duration);
-
-        const ok = check(res, {
-            'status 200':            (r) => r.status === 200,
-            'resposta é array':      (r) => Array.isArray(r.json()),
-            'dentro do SLA (400ms)': (r) => r.timings.duration < 400,
-        });
-
-        if (!ok && res.status >= 500) {
-            orderSearchErrors.add(1);
-        }
-    });
-
-    sleep(0.1);
-}
 
 // ─── Função default — usada com k6 run --vus N --duration T (smoke test) ────
 // Executa todos os cenários de forma round-robin para validação rápida de sintaxe.
 export default function () {
     criarPedido();
     listarPedidos();
-    buscarPedidos();
     pagarPedido();
 }
 

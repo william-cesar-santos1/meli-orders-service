@@ -63,8 +63,4 @@ public class UseCaseConfig {
         return new ListOrdersByCustomerUseCase(findOrderPort);
     }
 
-    @Bean
-    public SearchOrdersUseCase searchOrdersUseCase(OrderSearchPort searchPort) {
-        return new SearchOrdersUseCase(searchPort);
-    }
 }

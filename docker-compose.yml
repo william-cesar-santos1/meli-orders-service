@@ -1,35 +1,47 @@
 version: '3.9'
 
-# SOLUÇÃO: docker-compose.yml atualizado para aula 5 — dependencias minimas.
-# MongoDB REMOVIDO definitivamente. Redpanda adicionado para eventos de dominio.
-# Principio: infraestrutura como codigo — sem servicos desnecessarios no ambiente local.
-
+# SOLUCAO: docker-compose com stack minima + proxy reverso para replicas da app.
 services:
   meli-orders-app:
+    profiles:
+      - prd
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: meli-orders-app
-    ports:
-      - "8080:8080"
+    # Sem container_name e sem publish de porta para permitir escalabilidade.
+    expose:
+      - "8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/orders_db
       SPRING_DATASOURCE_USERNAME: orders
       SPRING_DATASOURCE_PASSWORD: orders
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
       SERVICES_BILLING_URL: http://billing-wiremock:8080
-      SPRING_OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      # OpenTelemetry: exporta traces via OTLP gRPC para Jaeger
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://jaeger:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
     depends_on:
       postgres:
-        condition: service_healthy
-      elasticsearch:
         condition: service_healthy
       redis:
         condition: service_healthy
       jaeger:
         condition: service_started
+    deploy:
+      replicas: 3
+
+  nginx:
+    profiles:
+      - prd
+    image: nginx:1.27-alpine
+    container_name: meli-orders-nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docker/nginx-reverse.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - meli-orders-app
 
   postgres:
     image: postgres:16-alpine
@@ -55,21 +67,6 @@ services:
       timeout: 5s
       retries: 5
 
-  elasticsearch:
-    image: elasticsearch:8.13.0
-    container_name: meli-orders-elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    ports:
-      - "9200:9200"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-
   redis:
     image: redis:7-alpine
     container_name: meli-orders-redis
@@ -81,12 +78,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Simulação do microserviço externo de Billing via WireMock.
-  # O contexto de Billing foi extraído deste serviço — toda comunicação ocorre via HTTP,
-  # com Anti-Corruption Layer (ACL) na camada de order.application.acl.
-  # Para sobrescrever o comportamento padrão (CAPTURED), use a Admin API do WireMock:
-  #   POST http://localhost:8082/__admin/mappings
-  # ou edite os arquivos em ./wiremock/mappings/ e reinicie o container.
+  # Simulacao do microservico externo de Billing via WireMock.
   billing-wiremock:
     image: wiremock/wiremock:3.3.1-1
     container_name: meli-billing-wiremock
@@ -95,7 +87,7 @@ services:
     volumes:
       - ./wiremock/mappings:/home/wiremock/mappings
       - ./wiremock/__files:/home/wiremock/__files
-    command: --port 8080 --verbose
+    command: --port 8080
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/__admin/health || exit 1"]
       interval: 10s
@@ -126,9 +118,10 @@ services:
     image: jaegertracing/all-in-one:latest
     container_name: meli-orders-jaeger
     ports:
-      - "6831:6831/udp"  # Jaeger agent (Thrift/UDP)
-      - "16686:16686"    # Jaeger UI
-      - "14317:4317"     # OTLP receiver (gRPC)
+      - "6831:6831/udp"
+      - "16686:16686"
+      - "14317:4317"
+      - "14318:4318"
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
 
