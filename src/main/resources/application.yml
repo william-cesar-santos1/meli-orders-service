@@ -46,6 +46,20 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  # Aula 7: tracing distribuido com OpenTelemetry.
+  sleuth:
+    otel:
+      config:
+        trace_id_ratio_based: 1.0  # 100% de sampling para environment local.
+
+  # Aula 7: exportar traces via OTLP (OpenTelemetry Protocol).
+  otel:
+    exporter:
+      otlp:
+        endpoint: http://localhost:4317
+        protocol: grpc
+        timeout: 10s
+
 server:
   port: 8080
 
