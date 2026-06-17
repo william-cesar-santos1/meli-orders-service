@@ -49,6 +49,23 @@ spring:
 server:
   port: 8080
 
+# Aula 7: Management endpoints e metricas Prometheus.
+management:
+  endpoints:
+    web:
+      exposure:
+        # SOLUÇÃO: expor endpoints de observabilidade — health, metrics, prometheus.
+        include: health,metrics,prometheus,env
+  metrics:
+    export:
+      prometheus:
+        # SOLUÇÃO: habilitar exportacao Prometheus.
+        enabled: true
+    # SOLUÇÃO: tags globais enriquecem todas as metricas.
+    tags:
+      app: meli-orders-service
+      environment: local
+
 services:
   catalog:
     url: http://localhost:8081

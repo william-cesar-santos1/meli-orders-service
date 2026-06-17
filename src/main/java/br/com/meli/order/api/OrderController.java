@@ -14,6 +14,8 @@ import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.annotation.Timed;
 
 import java.util.List;
 
@@ -27,30 +29,48 @@ public class OrderController {
     private final PayOrderUseCase payOrderUseCase;
     private final SearchOrdersUseCase searchOrdersUseCase;
     private final ListOrdersByCustomerUseCase listOrdersByCustomerUseCase;
+    private final MeterRegistry meterRegistry;
 
     public OrderController(OrderSagaOrchestrator sagaOrchestrator,
                            PayOrderUseCase payOrderUseCase,
                            SearchOrdersUseCase searchOrdersUseCase,
-                           ListOrdersByCustomerUseCase listOrdersByCustomerUseCase) {
+                           ListOrdersByCustomerUseCase listOrdersByCustomerUseCase,
+                           MeterRegistry meterRegistry) {
         this.sagaOrchestrator = sagaOrchestrator;
         this.payOrderUseCase = payOrderUseCase;
         this.searchOrdersUseCase = searchOrdersUseCase;
         this.listOrdersByCustomerUseCase = listOrdersByCustomerUseCase;
+        this.meterRegistry = meterRegistry;
     }
 
     @PostMapping
+    @Timed(value = "order.creation", description = "Tempo de criacao de pedido")
     public ResponseEntity<OrderResponse> create(@RequestBody @Valid CreateOrderRequest request) {
         // SOLUÇÃO: logs JSON com MDC — cada log carrega correlationId automaticamente.
         // logger.info emitira com "correlationId":"...", "timestamp":"...", tudo em JSON.
         MDC.put("customerId", request.customerId());
+
+        // SOLUÇÃO: counter de tentativa de criacao.
+        meterRegistry.counter("orders.creation.attempt").increment();
         logger.info("Creating order");
         
-        PlaceOrderCommand command = toCommand(request);
-        OrderResponse response = OrderResponse.from(sagaOrchestrator.execute(command));
-        
-        logger.info("Order created successfully");
-        MDC.remove("customerId");
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        try {
+            PlaceOrderCommand command = toCommand(request);
+            OrderResponse response = OrderResponse.from(sagaOrchestrator.execute(command));
+
+            // SOLUÇÃO: counter de sucesso.
+            meterRegistry.counter("orders.created", "customerId", request.getCustomerId()).increment();
+            logger.info("Order created successfully");
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (Exception e) {
+            // SOLUÇÃO: counter de erro correlaciona tipo de excecao.
+            meterRegistry.counter("orders.creation.error", "errorType", e.getClass().getSimpleName()).increment();
+            logger.error("Order creation failed", e);
+            throw e;
+        } finally {
+            MDC.remove("customerId");
+        }
     }
 
     @GetMapping
