@@ -8,6 +8,8 @@ import br.com.meli.order.application.PlaceOrderCommand;
 import br.com.meli.order.application.SearchOrdersUseCase;
 import br.com.meli.order.application.saga.OrderSagaOrchestrator;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +19,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/orders")
 public class OrderController {
+
+    private static final Logger logger = LoggerFactory.getLogger(OrderController.class);
 
     private final OrderSagaOrchestrator sagaOrchestrator;
     private final PayOrderUseCase payOrderUseCase;
@@ -35,17 +39,24 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<OrderResponse> create(@RequestBody @Valid CreateOrderRequest request) {
-        // Controller converte DTO de API → Comando de aplicação (Dependency Inversion)
+        // PROBLEMA: logs textuais sem contexto — impossivel filtrar por usuario/transacao.
+        // Sem CorrelationID, logs de multiplos servicos nao se conectam; RCA exige grep manual.
+        logger.info("Creating order");
         PlaceOrderCommand command = toCommand(request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(OrderResponse.from(sagaOrchestrator.execute(command)));
+        OrderResponse response = OrderResponse.from(sagaOrchestrator.execute(command));
+        logger.info("Order created successfully");
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping
     public List<OrderResponse> listByCustomer(@RequestParam String customerId) {
-        return listOrdersByCustomerUseCase.execute(customerId).stream()
+        // PROBLEMA: logs sem contexto de usuario — apos timeout, nao sabemos quem foi afetado.
+        logger.info("Fetching orders for customer");
+        List<OrderResponse> orders = listOrdersByCustomerUseCase.execute(customerId).stream()
                 .map(OrderResponse::from)
                 .toList();
+        logger.info("Orders fetched");
+        return orders;
     }
 
     @PatchMapping("/{id}/pay")
