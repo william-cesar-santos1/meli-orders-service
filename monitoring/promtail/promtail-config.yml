@@ -1,0 +1,57 @@
+# Configuração do Promtail para coletar logs dos containers Docker.
+# O Promtail descobre containers via Docker socket e encaminha ao Loki.
+# O pipeline JSON extrai campos estruturados (level, logger_name) como labels.
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  # Persiste a posição de leitura para retomar sem duplicar logs após restart.
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          # Coleta apenas containers com label com.docker.compose.project definida
+          # (ou seja, iniciados por este docker-compose).
+          - name: label
+            values: ["com.docker.compose.project"]
+
+    relabel_configs:
+      # Extrai o nome do container (ex: /meli-orders-app → meli-orders-app).
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(.*)"
+        target_label: container
+
+      # Preserva o stream (stdout / stderr) como label.
+      - source_labels: ["__meta_docker_container_log_stream"]
+        target_label: stream
+
+      # Inclui o nome do compose-service como label.
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_service"]
+        target_label: service
+
+    pipeline_stages:
+      # O meli-orders-app emite JSON via LogstashEncoder — extrai campos como labels.
+      - json:
+          expressions:
+            level: level
+            logger: logger_name
+
+      # Promove os campos extraídos para labels Loki (indexáveis).
+      - labels:
+          level:
+          logger:
+
+      # Usa o campo "message" do JSON como linha de log exibida no Grafana.
+      - output:
+          source: message
+

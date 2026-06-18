@@ -27,6 +27,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - meli-network
 
   postgres:
     image: postgres:16-alpine
@@ -51,6 +53,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - meli-network
 
   elasticsearch:
     image: elasticsearch:8.13.0
@@ -66,6 +70,8 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
+    networks:
+      - meli-network
 
   redis:
     image: redis:7-alpine
@@ -77,6 +83,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - meli-network
 
   # Simulação do microserviço externo de Billing via WireMock.
   # O contexto de Billing foi extraído deste serviço — toda comunicação ocorre via HTTP,
@@ -98,6 +106,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - meli-network
 
   prometheus:
     image: prom/prometheus:v2.51.2
@@ -106,6 +116,46 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - meli-network
+
+  # ── Loki: backend de agregação e consulta de logs (substitui ELK para logs no Grafana).
+  # Armazenamento local em filesystem — adequado para ambiente de desenvolvimento.
+  # Acesso via Grafana → Explore → datasource Loki, usando LogQL.
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: meli-orders-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3100/ready | grep -q ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - meli-network
+
+  # ── Promtail: agente coletor que lê os logs dos containers via Docker socket.
+  # Descobre containers automaticamente, aplica pipeline JSON para extrair
+  # campos estruturados (level, logger_name) como labels Loki indexáveis.
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: meli-orders-promtail
+    command: -config.file=/etc/promtail/promtail-config.yml
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      # Docker socket: permite descoberta automática de containers.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      loki:
+        condition: service_healthy
+    networks:
+      - meli-network
 
   grafana:
     image: grafana/grafana:10.4.2
@@ -118,6 +168,17 @@ services:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
+      - loki
+    networks:
+      - meli-network
 
 volumes:
   postgres_data:
+  loki_data:
+
+# Rede explícita compartilhada por todos os serviços.
+# Garante resolução DNS consistente (ex: "loki", "prometheus") independente
+# da ordem de inicialização ou rebuilds parciais.
+networks:
+  meli-network:
+    driver: bridge

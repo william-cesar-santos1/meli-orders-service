@@ -1,0 +1,66 @@
+# Configuração do Loki 3.x em modo single-binary para ambiente local.
+# Baseada na configuração oficial de desenvolvimento do Grafana:
+# https://github.com/grafana/loki/blob/main/cmd/loki/loki-local-config.yaml
+
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+# FIX: zera o tempo mínimo que o ingester espera antes de se marcar como "ready".
+# Sem isso, durante o start_period o gRPC retorna NOT_SERVING e o distributor
+# rejeita writes com "at least 1 live replicas required, could only find 0".
+ingester:
+  lifecycler:
+    min_ready_duration: 0s
+  wal:
+    enabled: true
+    dir: /loki/wal
+  chunk_idle_period: 5m
+  max_chunk_age: 1h
+  chunk_retain_period: 30s
+
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 100
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  retention_period: 168h
+
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  # Obrigatório quando retention_enabled=true no Loki 3.x.
+  delete_request_store: filesystem
+
+ruler:
+  alertmanager_url: http://localhost:9093
+
+analytics:
+  reporting_enabled: false
