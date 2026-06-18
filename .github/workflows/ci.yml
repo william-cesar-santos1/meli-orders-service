@@ -3,57 +3,211 @@
 # Tags SemVer rastreiam exatamente qual commit foi para producao — sem reutilizar digest.
 name: CI/CD
 
+# Aciona em push de qualquer branch e em PRs direcionados à main.
+# Jobs de release (security, tag, docker) só executam em push direto à main.
 on:
   push:
-    branches: [main]
-    tags: ['v*.*.*']
+    branches: ['**']
   pull_request:
     branches: [main]
 
 jobs:
-  test:
-    name: Test (JDK ${{ matrix.java }})
-    # SOLUÇÃO: strategy.matrix executa jobs em paralelo para cada combinacao de ambiente.
-    # Revela incompatibilidades de JDK antes do merge, nao depois do deploy.
-    strategy:
-      fail-fast: false
-      matrix:
-        java: [21, 25]
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 1. BUILD — Compila o projeto.  Gate obrigatório antes dos testes.
+  #            Roda em todas as branches e PRs.
+  # ────────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Java ${{ matrix.java }}
+      - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
-          java-version: ${{ matrix.java }}
+          java-version: '21'
           distribution: temurin
 
-      # SOLUÇÃO: cache de dependencias Maven reduz tempo de feedback em PRs
-      # sem sacrificar reproducibilidade — chave inclui hash do pom.xml.
-      - name: Cache Maven dependencies
+      - name: Cache Maven
         uses: actions/cache@v4
         with:
           path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ matrix.java }}-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-${{ matrix.java }}-
-            ${{ runner.os }}-maven-
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
 
-      - name: Run tests
-        run: ./mvnw test -q
+      - name: Compile
+        run: ./mvnw compile -q -B
 
-  docker:
-    name: Build & Push Docker image
-    needs: test
+  # ────────────────────────────────────────────────────────────────────────────
+  # 2. TESTES PARALELOS — Unit | Integration | Architecture
+  #    Todos dependem do build e rodam em paralelo entre si.
+  #    Roda em todas as branches e PRs.
+  #
+  #    Separação por @Tag do JUnit 5:
+  #      unit        → sem tag (excluídos "architecture" e "integration")
+  #      integration → @Tag("integration")  [Testcontainers + WireMock]
+  #      arch        → @Tag("architecture") [ArchUnit]
+  # ────────────────────────────────────────────────────────────────────────────
+  test-unit:
+    name: Tests — Unit
+    needs: build
     runs-on: ubuntu-latest
-    # SOLUÇÃO: job docker so roda em push de tag Git versionada — nunca em PRs.
-    # Garante que apenas codigo testado e aprovado gera imagem publicada.
-    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - name: Cache Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Run unit tests
+        run: ./mvnw test -DexcludedGroups="architecture,integration" -q -B
+
+  test-integration:
+    name: Tests — Integration
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - name: Cache Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Run integration tests
+        run: ./mvnw test -Dgroups="integration" -q -B
+
+  test-arch:
+    name: Tests — Architecture
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - name: Cache Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Run architecture tests
+        run: ./mvnw test -Dgroups="architecture" -q -B
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 3. SECURITY — Gera SBOM (CycloneDX) e escaneia dependências (Trivy).
+  #               Só roda em push direto à main, após todos os testes passarem.
+  # ────────────────────────────────────────────────────────────────────────────
+  security:
+    name: Security Scan
+    needs: [test-unit, test-integration, test-arch]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - name: Cache Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Gerar SBOM (CycloneDX)
+        run: ./mvnw cyclonedx:makeAggregateBom -q -B
+
+      - name: Upload SBOM como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: target/bom.xml
+
+      # Trivy escaneia filesystem + dependências declaradas.
+      # exit-code 1 quebra o pipeline em CVE CRITICAL ou HIGH — código vulnerável
+      # não avança para geração de tag nem publicação de imagem.
+      - name: Trivy — scan de dependências
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          exit-code: '1'
+          severity: CRITICAL,HIGH
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 4. TAG — Gera automaticamente uma nova tag SemVer no repositório.
+  #           Lê a última tag existente e incrementa o patch por padrão.
+  #           Usa conventional commits para bump major/minor/patch automático:
+  #             feat:            → minor  (ex: v1.1.0 → v1.2.0)
+  #             fix: / chore:    → patch  (ex: v1.1.0 → v1.1.1)
+  #             BREAKING CHANGE  → major  (ex: v1.1.0 → v2.0.0)
+  # ────────────────────────────────────────────────────────────────────────────
+  tag:
+    name: Release Tag
+    needs: security
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      new_tag:     ${{ steps.tag_version.outputs.new_tag }}
+      new_version: ${{ steps.tag_version.outputs.new_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # necessário para ler todas as tags existentes
+
+      - name: Bump version e push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+          tag_prefix: v
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 5. DOCKER — Build local → Trivy scan na imagem → Publish no Docker Hub.
+  #             A imagem só é publicada se o scan não encontrar CVE CRITICAL/HIGH.
+  #             Se qualquer step falhar, o pipeline quebra antes do push.
+  # ────────────────────────────────────────────────────────────────────────────
+  docker:
+    name: Docker — Build, Scan & Publish
+    needs: tag
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
     steps:
       - uses: actions/checkout@v4
 
@@ -66,86 +220,40 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # SOLUÇÃO: metadata-action gera automaticamente tags SemVer a partir da tag Git.
-      # v1.3.0 -> publica orders:1.3.0, orders:1.3 e orders:latest.
-      # Cada digest e unico e imutavel — reutilizar mesma tag para digest diferente e proibido.
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/meli-orders-service
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
-
-      - name: Build e push imagem
+      # Constrói a imagem localmente (sem push) para que o Trivy possa
+      # escanear antes de qualquer publicação.
+      - name: Build Docker image (local — sem push)
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # SOLUÇÃO: cache GHA preserva camadas entre runs sem necessidade de registry externo.
+          push: false
+          load: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/meli-orders-service:${{ needs.tag.outputs.new_version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/meli-orders-service:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Setup Java para gerar SBOM
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: temurin
-
-      - name: Cache Maven (SBOM)
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-21-${{ hashFiles('**/pom.xml') }}
-
-      # SOLUÇÃO: SBOM gerado como artefato imutavel de cada release.
-      # Permite auditoria retroativa — se CVE-XXXX for publicado amanha,
-      # voce sabe em quais releases ele estava presente sem reconstruir a imagem.
-      - name: Gerar SBOM (CycloneDX)
-        run: ./mvnw cyclonedx:makeAggregateBom -q
-
-      - name: Upload SBOM como artefato
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom-${{ github.ref_name }}
-          path: target/bom.xml
-
-      # SOLUÇÃO: Trivy escaneia camadas da imagem e dependencias do SBOM.
-      # exit-code 1 falha o build em CVE CRITICAL — codigo vulneravel nao chega a producao.
-      # Detectar no PR custa 30x menos do que detectar em producao (NIST estudos).
-      - name: Scan de vulnerabilidades com Trivy
+      # Trivy escaneia camadas da imagem Docker.
+      # exit-code 1 aborta antes do push — imagem vulnerável nunca chega ao Hub.
+      - name: Trivy — scan da imagem Docker
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/meli-orders-service:${{ steps.meta.outputs.version }}
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/meli-orders-service:${{ needs.tag.outputs.new_version }}
           format: table
           exit-code: '1'
           severity: CRITICAL,HIGH
           output: trivy-report.txt
 
-      - name: Upload relatorio Trivy
+      - name: Upload relatório Trivy
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-report-${{ github.ref_name }}
+          name: trivy-report-${{ needs.tag.outputs.new_tag }}
           path: trivy-report.txt
 
-      # SOLUÇÃO: comentario automatico no PR traz visibilidade de CVEs sem sair do fluxo
-      # de code review — seguranca no mesmo lugar onde o codigo e revisado.
-      - name: Comentar relatorio Trivy no PR
-        if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            let report = '(sem vulnerabilidades encontradas)';
-            try { report = fs.readFileSync('trivy-report.txt', 'utf8'); } catch(e) {}
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '## 🔐 Trivy Security Scan\n```\n' + report + '\n```'
-            });
+      # Push só é executado se o step do Trivy não falhou (exit-code 0).
+      - name: Push para Docker Hub
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/meli-orders-service:${{ needs.tag.outputs.new_version }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/meli-orders-service:latest
