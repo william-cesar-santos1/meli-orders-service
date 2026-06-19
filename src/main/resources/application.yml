@@ -9,7 +9,7 @@ spring:
     hikari:
       # SOLUCAO (Bloco 1 — backpressure no banco): limitar o pool forca a aplicacao
       # a sinalizar ao cliente (via timeout) quando o banco esta sob pressao.
-      maximum-pool-size: 20
+      maximum-pool-size: 10
       minimum-idle: 2
       connection-timeout: 3000
       transaction-timeout: 30000
@@ -39,9 +39,6 @@ spring:
       host: localhost
       port: 6379
 
-  elasticsearch:
-    uris: http://localhost:9200
-
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -65,15 +62,23 @@ management:
     tags:
       app: meli-orders-service
       environment: local
+      # SOLUCAO: inclui o hostname do container nas metricas para identificar
+      # cada replica individualmente nos dashboards do Grafana.
+      hostname: ${HOSTNAME:unknown}
     # SOLUCAO (Observabilidade — histograma de latência): habilita os buckets de histograma
     # para http.server.requests. Sem isso, histogram_quantile() no Prometheus retorna NaN
     # e os painéis de p99/p95/p50 do Grafana ficam vazios.
     distribution:
       percentiles-histogram:
         http.server.requests: true
-  health:
-    elasticsearch:
-      enabled: false
+
+  # Aula 7: Tracing distribuído com OpenTelemetry via Micrometer Tracing
+  tracing:
+    sampling:
+      probability: 1.0  # 100% de sampling para environment local
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces  # OTLP HTTP endpoint do Jaeger
 
 services:
   catalog:

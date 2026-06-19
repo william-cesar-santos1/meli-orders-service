@@ -5,19 +5,32 @@ import br.com.meli.order.domain.ProductInfo;
 import br.com.meli.order.domain.exceptions.CatalogServiceUnavailableException;
 import br.com.meli.order.domain.exceptions.ProductUnavailableException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
+/**
+ * SOLUCAO (Rastreabilidade): usa RestTemplateBuilder injetado pelo Spring Boot,
+ * que automaticamente adiciona o ObservationClientHttpRequestInterceptor.
+ * Isso faz com que cada chamada HTTP ao servico de Catalog gere um span filho
+ * no trace atual, visivel no Jaeger com URL, status HTTP e duracao.
+ *
+ * ANTES: new RestTemplate() — sem interceptor de tracing, chamadas invisiveis no Jaeger.
+ * DEPOIS: builder.build() — span criado automaticamente para cada chamada HTTP de saida.
+ */
 @Component
 public class HttpCatalogAdapter implements CatalogPort {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    // SOLUCAO: RestTemplate construido via builder para herdar o interceptor de observabilidade.
+    private final RestTemplate restTemplate;
     private final String catalogBaseUrl;
 
-    public HttpCatalogAdapter(@Value("${services.catalog.url}") String catalogBaseUrl) {
+    public HttpCatalogAdapter(RestTemplateBuilder builder,
+                              @Value("${services.catalog.url}") String catalogBaseUrl) {
+        this.restTemplate = builder.build();
         this.catalogBaseUrl = catalogBaseUrl;
     }
 

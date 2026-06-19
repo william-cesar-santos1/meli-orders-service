@@ -6,7 +6,6 @@ import br.com.meli.order.domain.order.Order;
 import br.com.meli.order.domain.order.OrderStatus;
 import br.com.meli.order.infrastructure.jpa.InventoryEntity;
 import br.com.meli.order.infrastructure.jpa.InventoryRepository;
-import br.com.meli.order.infrastructure.search.OrderSearchRepository;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -14,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,9 +48,6 @@ class BillingServiceWireMockIT {
     static WireMockExtension wireMock = WireMockExtension.newInstance()
             .options(wireMockConfig().dynamicPort())
             .build();
-
-    @MockBean
-    OrderSearchRepository orderSearchRepository;
 
     @DynamicPropertySource
     static void configureInfra(DynamicPropertyRegistry registry) {

@@ -6,36 +6,26 @@ import br.com.meli.order.infrastructure.jpa.OrderEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.elasticsearch.annotations.Document;
-import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 
-@Document(indexName = "orders")
 public class OrderSearchDocument {
 
-    @Id
     private String id;
 
-    @Field(type = FieldType.Text, analyzer = "portuguese")
     private String customerName;
 
-    @Field(type = FieldType.Text, analyzer = "portuguese")
     private String productDescription;
 
-    @Field(type = FieldType.Keyword)
     private String status;
 
-    @Field(type = FieldType.Date)
     private Instant createdAt;
 
-    @Field(type = FieldType.Double)
     private BigDecimal totalAmount;
 
-    public OrderSearchDocument() {}
+    public OrderSearchDocument() {
+    }
 
     public static OrderSearchDocument from(Order order) {
         OrderSearchDocument doc = new OrderSearchDocument();
@@ -50,7 +40,9 @@ public class OrderSearchDocument {
         return doc;
     }
 
-    /** Mantido para compatibilidade com código de infraestrutura que parte da entidade JPA */
+    /**
+     * Mantido para compatibilidade com código de infraestrutura que parte da entidade JPA
+     */
     public static OrderSearchDocument from(OrderEntity entity) {
         OrderSearchDocument doc = new OrderSearchDocument();
         doc.id = entity.getId() != null ? entity.getId().toString() : null;
@@ -93,21 +85,51 @@ public class OrderSearchDocument {
         }
     }
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public String getId() {
+        return id;
+    }
 
-    public String getCustomerName() { return customerName; }
-    public void setCustomerName(String customerName) { this.customerName = customerName; }
+    public void setId(String id) {
+        this.id = id;
+    }
 
-    public String getProductDescription() { return productDescription; }
-    public void setProductDescription(String productDescription) { this.productDescription = productDescription; }
+    public String getCustomerName() {
+        return customerName;
+    }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public String getProductDescription() {
+        return productDescription;
+    }
 
-    public BigDecimal getTotalAmount() { return totalAmount; }
-    public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public void setProductDescription(String productDescription) {
+        this.productDescription = productDescription;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
+
+    public void setTotalAmount(BigDecimal totalAmount) {
+        this.totalAmount = totalAmount;
+    }
 }

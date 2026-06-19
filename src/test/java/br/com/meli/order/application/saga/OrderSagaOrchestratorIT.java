@@ -8,7 +8,6 @@ import br.com.meli.order.domain.order.Order;
 import br.com.meli.order.domain.order.OrderStatus;
 import br.com.meli.order.infrastructure.jpa.InventoryEntity;
 import br.com.meli.order.infrastructure.jpa.InventoryRepository;
-import br.com.meli.order.infrastructure.search.OrderSearchRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -57,8 +56,6 @@ class OrderSagaOrchestratorIT {
     @Autowired
     private InventoryRepository inventoryRepository;
 
-    @MockBean
-    OrderSearchRepository orderSearchRepository;
     @MockBean
     BillingPort billingPort;
 

@@ -2,7 +2,6 @@ package br.com.meli.order.application;
 
 import br.com.meli.order.domain.exceptions.CatalogServiceUnavailableException;
 import br.com.meli.order.domain.exceptions.ProductUnavailableException;
-import br.com.meli.order.infrastructure.search.OrderSearchRepository;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -33,9 +32,6 @@ class CatalogServiceWireMockTest {
     static WireMockExtension wireMock = WireMockExtension.newInstance()
         .options(wireMockConfig().dynamicPort())
         .build();
-
-    @MockBean
-    OrderSearchRepository orderSearchRepository;
 
     @DynamicPropertySource
     static void configureInfra(DynamicPropertyRegistry registry) {

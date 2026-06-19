@@ -52,16 +52,6 @@
             <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
-        <!-- NoSQL -->
-        <!-- SOLUÇÃO: spring-boot-starter-data-mongodb removido definitivamente.
-             O servico nao depende mais de MongoDB para nenhuma funcionalidade.
-             Toda persistencia transacional usa PostgreSQL + JPA.
-             Eventos sao publicados via Outbox Pattern (PostgreSQL). -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
-        </dependency>
-
         <!-- Cache / idempotência distribuída -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -105,12 +95,6 @@
             <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>elasticsearch</artifactId>
-            <scope>test</scope>
-        </dependency>
-
         <!-- Bloco 2: spring-boot-testcontainers e junit-jupiter integram Testcontainers com Spring Boot. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -156,6 +140,27 @@
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- Aula 7: Micrometer Tracing com bridge OpenTelemetry para tracing distribuido. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+
+        <!-- Aula 7: exportador OTLP — envia traces via gRPC para Jaeger/Tempo. -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+
+        <!-- SOLUCAO (Rastreabilidade — spans de JDBC): instrumenta cada query SQL
+             como span filho do trace atual. Sem esta lib, operacoes de banco
+             sao invisíveis no Jaeger. -->
+        <dependency>
+            <groupId>net.ttddyy.observation</groupId>
+            <artifactId>datasource-micrometer-spring-boot</artifactId>
+            <version>1.0.6</version>
         </dependency>
     </dependencies>
 

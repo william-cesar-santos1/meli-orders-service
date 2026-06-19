@@ -1,0 +1,657 @@
+{
+  "uid": "billing-api",
+  "title": "Billing API — Requisições · Erros · Circuit Breaker",
+  "tags": [
+    "meli-orders",
+    "billing",
+    "external"
+  ],
+  "timezone": "browser",
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "label": "Réplica",
+        "description": "Filtra por réplica da aplicação. 'All' exibe todas as réplicas agregadas.",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(up{job=\"meli-orders\"}, instance)",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {},
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total de chamadas ao Billing (últimos 5 min)",
+      "description": "Número absoluto de requisições enviadas ao serviço de Billing no período.",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(http_client_requests_seconds_count{job=\"meli-orders\",instance=~\"$instance\",uri=\"/payments/charge\"}[5m]))",
+          "legendFormat": "Total",
+          "refId": "A"
+        }
+      ],
+      "datasource": "Prometheus"
+    },
+    {
+      "id": 2,
+      "title": "Taxa de Sucesso (2xx)",
+      "description": "Proporção de chamadas ao Billing com resposta 2xx sobre o total.",
+      "type": "gauge",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.9
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_client_requests_seconds_count{job=\"meli-orders\",instance=~\"$instance\",uri=\"/payments/charge\",outcome=\"SUCCESS\"}[1m])) / sum(rate(http_client_requests_seconds_count{job=\"meli-orders\",instance=~\"$instance\",uri=\"/payments/charge\"}[1m]))",
+          "legendFormat": "Sucesso",
+          "refId": "A"
+        }
+      ],
+      "datasource": "Prometheus"
+    },
+    {
+      "id": 3,
+      "title": "Taxa de Erro 4xx (CLIENT_ERROR)",
+      "description": "Proporção de respostas 4xx recebidas do Billing. Indica problemas no payload enviado.",
+      "type": "gauge",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "red",
+                "value": 0.05
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_client_requests_seconds_count{job=\"meli-orders\",instance=~\"$instance\",uri=\"/payments/charge\",outcome=\"CLIENT_ERROR\"}[1m])) / sum(rate(http_client_requests_seconds_count{job=\"meli-orders\",instance=~\"$instance\",uri=\"/payments/charge\"}[1m]))",
+          "legendFormat": "4xx",
+          "refId": "A"
+        }
+      ],
+      "datasource": "Prometheus"
+    },
+    {
+      "id": 4,
+      "title": "Taxa de Erro 5xx + Timeout (SERVER_ERROR / UNKNOWN)",
+      "description": "Proporção de respostas 5xx ou timeouts/erros de conexão com o Billing. Aciona o Circuit Breaker acima de 50%.",
+      "type": "gauge",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "red",
+                "value": 0.05
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_client_requests_seconds_count{job=\"meli-orders\",instance=~\"$instance\",uri=\"/payments/charge\",outcome=~\"SERVER_ERROR|UNKNOWN\"}[1m])) / sum(rate(http_client_requests_seconds_count{job=\"meli-orders\",instance=~\"$instance\",uri=\"/payments/charge\"}[1m]))",
+          "legendFormat": "5xx / Timeout",
+          "refId": "A"
+        }
+      ],
+      "datasource": "Prometheus"
+    },
+    {
+      "id": 5,
+      "title": "RPS ao Billing — Sucesso vs Erros vs Timeout",
+      "description": "Volume de requisições por segundo separado por resultado. Pico de erros 5xx/UNKNOWN pode indicar instabilidade do Billing ou Circuit Breaker prestes a abrir.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Sucesso (2xx)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Erro 4xx"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Erro 5xx / Timeout"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_client_requests_seconds_count{job=\"meli-orders\",instance=~\"$instance\",uri=\"/payments/charge\",outcome=\"SUCCESS\"}[1m]))",
+          "legendFormat": "Sucesso (2xx)",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(http_client_requests_seconds_count{job=\"meli-orders\",instance=~\"$instance\",uri=\"/payments/charge\",outcome=\"CLIENT_ERROR\"}[1m]))",
+          "legendFormat": "Erro 4xx",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(http_client_requests_seconds_count{job=\"meli-orders\",instance=~\"$instance\",uri=\"/payments/charge\",outcome=~\"SERVER_ERROR|UNKNOWN\"}[1m]))",
+          "legendFormat": "Erro 5xx / Timeout",
+          "refId": "C"
+        }
+      ],
+      "datasource": "Prometheus"
+    },
+    {
+      "id": 6,
+      "title": "Latência ao Billing — p99 · p95 · p50",
+      "description": "Percentis de latência das chamadas HTTP ao Billing. p99 > 2s indica risco de timeout (read timeout configurado em 2s).",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1.0
+              },
+              {
+                "color": "red",
+                "value": 2.0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p99"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p50 (mediana)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_client_requests_seconds_bucket{job=\"meli-orders\",instance=~\"$instance\",uri=\"/payments/charge\"}[5m])) by (le))",
+          "legendFormat": "p99",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_client_requests_seconds_bucket{job=\"meli-orders\",instance=~\"$instance\",uri=\"/payments/charge\"}[5m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_client_requests_seconds_bucket{job=\"meli-orders\",instance=~\"$instance\",uri=\"/payments/charge\"}[5m])) by (le))",
+          "legendFormat": "p50 (mediana)",
+          "refId": "C"
+        }
+      ],
+      "datasource": "Prometheus"
+    },
+    {
+      "id": 7,
+      "title": "Circuit Breaker — Estado por Réplica",
+      "description": "Estado do Circuit Breaker do Billing (Resilience4j). Valor 1 = estado ativo. OPEN (vermelho) = chamadas bloqueadas, usando fallback FAILED.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 15
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Inativo"
+                },
+                "1": {
+                  "text": "Ativo"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*closed.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*open.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*half_open.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "resilience4j_circuitbreaker_state{job=\"meli-orders\",instance=~\"$instance\",name=\"billing\"}",
+          "legendFormat": "{{instance}} — {{state}}",
+          "refId": "A"
+        }
+      ],
+      "datasource": "Prometheus"
+    },
+    {
+      "id": 8,
+      "title": "Circuit Breaker — Taxa de Falha Atual (%)",
+      "description": "Percentual de falhas na janela deslizante do Circuit Breaker (sliding-window-size=10). Acima de 50% o circuito abre.",
+      "type": "gauge",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 8,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 30
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "avg(resilience4j_circuitbreaker_failure_rate{job=\"meli-orders\",instance=~\"$instance\",name=\"billing\"})",
+          "legendFormat": "Taxa de Falha",
+          "refId": "A"
+        }
+      ],
+      "datasource": "Prometheus"
+    },
+    {
+      "id": 9,
+      "title": "Chamadas Bloqueadas pelo Circuito (últimos 5 min)",
+      "description": "Chamadas rejeitadas sem tentar o Billing porque o circuito estava OPEN. Indica quantas requisições usaram o fallback FAILED.",
+      "type": "stat",
+      "gridPos": {
+        "x": 8,
+        "y": 20,
+        "w": 8,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(resilience4j_circuitbreaker_calls_total{job=\"meli-orders\",instance=~\"$instance\",name=\"billing\",kind=\"not_permitted\"}[5m]))",
+          "legendFormat": "Bloqueadas",
+          "refId": "A"
+        }
+      ],
+      "datasource": "Prometheus"
+    },
+    {
+      "id": 10,
+      "title": "Chamadas via Retry (últimos 5 min)",
+      "description": "Chamadas ao Billing que precisaram de pelo menos 1 retry antes de ter resultado (max-attempts=2, wait=200ms).",
+      "type": "stat",
+      "gridPos": {
+        "x": 16,
+        "y": 20,
+        "w": 8,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(resilience4j_retry_calls_total{job=\"meli-orders\",instance=~\"$instance\",name=\"billing\",kind=\"successful_with_retry\"}[5m]))",
+          "legendFormat": "Sucesso com Retry",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(increase(resilience4j_retry_calls_total{job=\"meli-orders\",instance=~\"$instance\",name=\"billing\",kind=\"failed_with_retry\"}[5m]))",
+          "legendFormat": "Falha após Retry",
+          "refId": "B"
+        }
+      ],
+      "datasource": "Prometheus"
+    }
+  ]
+}

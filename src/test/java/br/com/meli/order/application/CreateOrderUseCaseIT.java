@@ -3,13 +3,11 @@ package br.com.meli.order.application;
 import br.com.meli.order.domain.exceptions.OutOfStockException;
 import br.com.meli.order.infrastructure.jpa.InventoryEntity;
 import br.com.meli.order.infrastructure.jpa.InventoryRepository;
-import br.com.meli.order.infrastructure.search.OrderSearchRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -43,8 +41,6 @@ class CreateOrderUseCaseIT {
     private CreateOrderUseCase createOrderUseCase;
     @Autowired
     private InventoryRepository inventoryRepository;
-    @MockBean
-    OrderSearchRepository orderSearchRepository;
 
     @BeforeEach
     void seedInventory() {
